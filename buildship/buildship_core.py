@@ -18,6 +18,7 @@ Stage 1 with your keys; nothing in this file needs to change.
 
 from __future__ import annotations
 
+import ast
 import json
 import time
 import uuid
@@ -82,21 +83,45 @@ class ToolRegistry:
     def get(self, name: str) -> Optional[ToolEntry]:
         return self.tools.get(name)
 
-    def admit(self, contract: ToolContract, verification: VerificationRecord) -> None:
-        """Validation gate: only call this once a tool has PASSED its test."""
+    def admit(
+        self,
+        contract: ToolContract,
+        verification: VerificationRecord,
+        key: str | None = None,
+    ) -> None:
+        """Validation gate: only call this once a tool has PASSED its test.
+
+        `key` is the registry / capability key (e.g. the requested `needed_tool`),
+        defaulting to the tool's own name. Keeping the key distinct from the
+        function's def name lets reuse hit on the requested capability even when
+        the model named the function something else."""
         if verification.status != "passed":
             raise ValueError("refusing to admit a tool that did not pass its test")
-        self.tools[contract.name] = ToolEntry(contract, verification)
+        self.tools[key or contract.name] = ToolEntry(contract, verification)
         self.save()
 
     def callable(self, name: str) -> Callable[..., Any]:
         """Materialize the stored tool as a live Python callable.
+        The registry key may differ from the function's def name (the key is the
+        requested capability), so fetch by the contract's name and fall back to the
+        sole top-level function defined in the code.
         NOTE: in production, run even the *use* step inside the Sandbox adapter;
         this in-process exec is fine for the demo because the tool already passed."""
         entry = self.tools[name]
         ns: dict[str, Any] = {}
         exec(entry.contract.code, ns)  # noqa: S102
-        return ns[name]
+        fn = ns.get(entry.contract.name)
+        if fn is None:
+            defs = [
+                node.name
+                for node in ast.parse(entry.contract.code).body
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            ]
+            if len(defs) == 1:
+                fn = ns.get(defs[0])
+        if fn is None:
+            raise KeyError(f"tool function for {name!r} not found in its code")
+        return fn
 
     def list_names(self) -> list[str]:
         return [n for n, e in self.tools.items() if e.verification.status == "passed"]
@@ -240,10 +265,10 @@ class Harness:
             log.log("test", attempt=budget.attempts, passed=passed, output=output[:500])
 
             if passed:  # ---- validation gate ----
-                self.registry.admit(contract, verification)
-                log.log("admit", tool=contract.name)
+                self.registry.admit(contract, verification, key=needed_tool)
+                log.log("admit", tool=needed_tool, function=contract.name)
                 result = self.action.execute(
-                    contract.name, self.registry.callable(contract.name)
+                    needed_tool, self.registry.callable(needed_tool)
                 )
                 return self._finish(log, task, "built", result)
 
