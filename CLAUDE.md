@@ -80,6 +80,30 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-07 — Stage 0/1: vendor adapters wired
+
+**Phase:** Stage 0 item (5) done — the four core Protocols are implemented; ready for a live end-to-end run once keys are added. Core (`buildship_core.py`) untouched.
+
+**Done:**
+- `buildship/adapters.py` implements all four Protocols:
+  - `NebiusLLMClient` — codegen → `ToolContract` (low-temp, JSON mode, forwards retry `feedback`).
+  - `ComposioSandbox` — runs tool source in the Composio remote workbench (`execute_meta` / `COMPOSIO_REMOTE_WORKBENCH`); `LocalSandbox` subprocess fallback via `BUILDSHIP_SANDBOX=local`.
+  - `TavilySearcher` — `search(... include_answer=True)` → answer + snippets.
+  - `ComposioAction` — renders the chart in-process via the built tool, then fires a real `tools.execute` Slack action.
+  - `make_sandbox()` / `build_harness()` wiring helpers.
+- `buildship/__init__.py`; `smoke_hero.py` end-to-end driver (key check → runs chart hero task → prints trajectory).
+- `.env.example` extended (Composio session/sandbox/action config); `.gitignore` adds `artifacts/` + `*_library.json`; `matplotlib` added.
+- Verified: compiles + imports; signatures match the Protocols; every SDK call checked against installed source (openai 2.41, tavily 0.7.25, composio 0.13.1 / composio_client 1.39.0) via an adversarial audit — no blocker/major bugs.
+- Hardening: `write_tool` aligns `ToolContract.name` to the actual top-level `def` (via `ast`), so `registry.callable()` can't `KeyError` after a passed self-test.
+
+**Open / blockers:**
+- Not yet run live (needs keys). Run: `cp .env.example .env`, add NEBIUS/TAVILY/COMPOSIO keys, then `uv run --python /opt/homebrew/opt/python@3.12/bin/python3.12 smoke_hero.py`.
+- Two backend-defined unknowns, configurable + flagged inline: workbench argument key (`BUILDSHIP_WORKBENCH_ARG`, default `code`; try `source`) and the Slack action slug/channel/connection. First-run tip: `BUILDSHIP_SANDBOX=local` validates the loop before the Composio workbench.
+
+**Next up:**
+- Run `smoke_hero.py` with keys; tune the two flagged knobs from the first live trace.
+- Stage 1 polish: trace UI, run the hero task 15–20× to harden, record a fallback video.
+
 ### 2026-06-07 — Bootstrap complete
 
 **Phase:** project bootstrap done; **no application code yet**.

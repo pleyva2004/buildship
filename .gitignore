@@ -54,14 +54,16 @@ yarn-error.log*
 .next/
 dist/
 
-# ---- Forge runtime artifacts ----
-# Generated tool library, trajectory logs, sandbox scratch — keep out of git by default.
+# ---- buildship runtime artifacts ----
+# Generated tool library, trajectory logs, sandbox scratch, built charts — keep out of git.
 trajectories/
 runs/
 *.trajectory.json
 sandbox_scratch/
 generated_tools/*.py
 !generated_tools/.gitkeep
+artifacts/
+*_library.json
 
 # ---- Claude Code ----
 .claude/settings.local.json
