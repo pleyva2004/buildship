@@ -58,6 +58,7 @@ class TaskResult:
     e2e_ok: bool
     detail: str
     tokens: int
+    self_test_passed: bool | None = None
 
 
 @dataclass
@@ -169,9 +170,11 @@ def run_eval(
             outcome, res = "error", repr(exc)
 
         e2e_ok, detail = False, res
-        # Verify any admitted tool (incl. ungated arm's failing-self-test tools),
-        # so the end-to-end verifier — not the gate — judges correctness.
-        if registry.get(task.needed_tool) is not None:
+        # Capture BOTH signals: the gate's (self-test status, preserved even when the
+        # no_gate arm force-admits a failing tool) and ground truth (the verifier).
+        entry = registry.get(task.needed_tool)
+        self_test_passed = entry.verification.status == "passed" if entry is not None else None
+        if entry is not None:
             try:
                 e2e_ok, detail = task.verify(registry.callable(task.needed_tool))
             except Exception as exc:  # noqa: BLE001
@@ -182,6 +185,7 @@ def run_eval(
                 id=task.id, category=task.category, needed_tool=task.needed_tool,
                 outcome=outcome, attempts=counting.calls - before_calls,
                 e2e_ok=e2e_ok, detail=detail[:300], tokens=counting.total_tokens - before_tokens,
+                self_test_passed=self_test_passed,
             )
         )
         if not quiet:
@@ -238,6 +242,58 @@ def _summarize(name: str, reports: list[EvalReport]) -> ArmSummary:
     )
 
 
+@dataclass
+class AlignmentReport:
+    n: int
+    admit_correct: int      # self-test pass, verifier pass
+    false_positive: int     # self-test pass, verifier FAIL (gate would admit a dud)
+    false_negative: int     # self-test FAIL, verifier pass (gate rejects a correct tool)
+    correct_reject: int     # self-test fail, verifier fail
+    false_negative_rate: float
+    false_positive_rate: float
+    gate_precision: float
+    gate_recall: float
+    agreement: float
+    false_negative_ids: list[str]
+    false_positive_ids: list[str]
+
+
+def compute_alignment(results: list[TaskResult]) -> AlignmentReport:
+    rows = [r for r in results if r.self_test_passed is not None]
+    tp = [r for r in rows if r.self_test_passed and r.e2e_ok]
+    fp = [r for r in rows if r.self_test_passed and not r.e2e_ok]
+    fn = [r for r in rows if not r.self_test_passed and r.e2e_ok]
+    tn = [r for r in rows if not r.self_test_passed and not r.e2e_ok]
+
+    def _r(num: int, den: int) -> float:
+        return round(num / den, 3) if den else 0.0
+
+    correct = len(tp) + len(fn)        # tools the verifier accepts
+    admitted = len(tp) + len(fp)       # tools the gate (self-test) admits
+    return AlignmentReport(
+        n=len(rows), admit_correct=len(tp), false_positive=len(fp),
+        false_negative=len(fn), correct_reject=len(tn),
+        false_negative_rate=_r(len(fn), correct),
+        false_positive_rate=_r(len(fp), len(fp) + len(tn)),
+        gate_precision=_r(len(tp), admitted),
+        gate_recall=_r(len(tp), correct),
+        agreement=_r(len(tp) + len(tn), len(rows)),
+        false_negative_ids=[r.id for r in fn],
+        false_positive_ids=[r.id for r in fp],
+    )
+
+
+def run_alignment(tasks: list[EvalTask] | None = None, repeats: int = 1) -> AlignmentReport:
+    """Measure the gate signal (self-test) vs ground truth (verifier). Runs the no_gate
+    arm so EVERY tool is admitted with its true self-test status preserved, giving both
+    signals for every task."""
+    rows: list[TaskResult] = []
+    for _ in range(max(1, repeats)):
+        rep = run_eval(tasks, arm=Arm("no_gate"))
+        rows.extend(TaskResult(**r) for r in rep.results)
+    return compute_alignment(rows)
+
+
 def main() -> int:
     import sys
 
@@ -251,6 +307,24 @@ def main() -> int:
         return 1
 
     out = Path(os.environ.get("BUILDSHIP_EVAL_REPORT", "eval_report.json"))
+
+    if "alignment" in sys.argv[1:]:
+        a = sys.argv[1:]
+        i = a.index("alignment")
+        repeats = int(a[i + 1]) if i + 1 < len(a) and a[i + 1].isdigit() else 1
+        print(f"buildship eval — ALIGNMENT (self-test vs verifier) x{repeats}, "
+              f"{len(BENCHMARK)} tasks, sandbox={os.getenv('BUILDSHIP_SANDBOX', 'composio')}")
+        rep = run_alignment(repeats=repeats)
+        out.write_text(json.dumps(asdict(rep), indent=2))
+        print(f"\n=== SELF-TEST vs VERIFIER CONFUSION (n={rep.n}) ===")
+        print(f"  pass/pass  (correct admit) : {rep.admit_correct}")
+        print(f"  pass/FAIL  (FALSE POSITIVE): {rep.false_positive}  {rep.false_positive_ids}")
+        print(f"  FAIL/pass  (FALSE NEGATIVE): {rep.false_negative}  {rep.false_negative_ids}")
+        print(f"  FAIL/FAIL  (correct reject): {rep.correct_reject}")
+        print(f"  agreement={rep.agreement} precision={rep.gate_precision} recall={rep.gate_recall} "
+              f"FN_rate={rep.false_negative_rate} FP_rate={rep.false_positive_rate}")
+        print(f"\nreport written to {out}")
+        return 0
 
     if "ablation" in sys.argv[1:]:
         args = sys.argv[1:]

@@ -80,6 +80,17 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-08 — Eval rigor: gate-alignment metric + adversarial tasks (subagent build)
+
+**Done (built via a subagent workflow; all offline-verified — 61 tests green, BENCHMARK now 18 tasks):**
+- **Self-test ↔ verifier alignment metric** (`buildship/eval/runner.py`): `compute_alignment` / `run_alignment` + `AlignmentReport` — the 2×2 confusion matrix (false-negative = gate rejects a *correct* tool; false-positive = gate admits a *dud*) plus precision / recall / agreement. New CLI: `uv run -m buildship.eval alignment [N]` (runs the `no_gate` arm so both the gate signal and ground truth are captured per task). `TaskResult` gained `self_test_passed`.
+- **6 adversarial tasks** (`buildship/eval/tasks.py`, category `adversarial`): `round_half_up`, `slugify`, `int_to_roman`, `dedupe_preserving_order`, `flatten_one_level`, `median` — spec-traps where a careless first attempt fails but a faithful self-test catches it. Vetted offline (reference passes all cases; a deterministic naive fails ≥1). Added `_expect_cases` multi-case verifier helper.
+- Tests: reference + naive impls per adversarial task (parametrized accept/reject), category test updated, `test_compute_alignment`.
+
+**Why:** the 3-seed ablation showed `no_gate ≥ full` because the benchmark only exhibited the gate's *false-negative* mode (correct code, flaky self-test). The alignment metric quantifies that; the adversarial tasks add the *true-positive* mode so gated+retry can legitimately beat `no_gate`.
+
+**Next (live, user's terminal):** `uv run -m buildship.eval alignment` (expect a non-zero false-negative count, e.g. `transform_snake`) and `uv run -m buildship.eval ablation 3` (expect `full` to meet/beat `no_gate` on the expanded benchmark).
+
 ### 2026-06-08 — Reuse fix + test suite + Stage 2 eval harness
 
 **Done:**
