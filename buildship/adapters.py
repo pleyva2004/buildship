@@ -107,9 +107,11 @@ Respond with ONLY a single JSON object (no markdown, no prose) with EXACTLY thes
                  and the complete def. It must be runnable as-is.
   - "self_test": python that exercises the function and PROVES it works. It is appended
                  to "code" in the SAME module, so call the function by its name directly.
-                 Build small inputs, call the function, assert the result is correct
-                 (for file-producing tools, assert the output file exists and is
-                 non-empty), and finally print exactly "SELF_TEST_OK".
+                 Use SIMPLE, CANONICAL inputs that match the task description; the expected
+                 values you assert MUST be consistent with what your code actually computes
+                 — do NOT assert behavior the task didn't ask for (e.g. whitespace trimming
+                 or invented edge cases). For file-producing tools, assert the output file
+                 exists and is non-empty. Finally print exactly "SELF_TEST_OK".
   - "requires":  list of pip package names the code imports, e.g. ["matplotlib"].
 
 Hard rules (the tool is REJECTED unless ALL hold):
