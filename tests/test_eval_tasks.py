@@ -113,3 +113,20 @@ def test_aggregate_metrics():
     assert rep.mean_attempts_to_success == 1.0  # e2e-ok attempts: a=1, c=1
     assert rep.total_tokens == 600
     assert rep.by_category["compute"] == {"total": 2, "built": 2, "e2e": 1}
+
+
+def test_summarize_averages_repeats():
+    from buildship.eval.runner import EvalReport, _summarize
+
+    def rep(build, e2e, tokens):
+        return EvalReport(
+            total=2, build_success_rate=build, e2e_success_rate=e2e, reuse_rate=0.0,
+            mean_attempts_to_success=1.0, total_tokens=tokens, by_category={}, results=[],
+        )
+
+    s = _summarize("full", [rep(1.0, 1.0, 100), rep(0.5, 0.5, 300)])
+    assert s.repeats == 2
+    assert s.build_mean == 0.75
+    assert s.e2e_mean == 0.75
+    assert s.tokens_mean == 200
+    assert s.build_runs == [1.0, 0.5]

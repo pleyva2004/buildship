@@ -156,6 +156,9 @@ class NebiusLLMClient:
         self.total_tokens = 0  # cumulative usage across write_tool calls (cost KPI)
         # Retries to coax a valid JSON tool object out of a bloated/malformed reply.
         self._json_retries = int(os.environ.get("BUILDSHIP_CODEGEN_JSON_RETRIES", "3"))
+        # Cap completion size to bound cost and the occasional degenerate token bloat
+        # (a trivial tool once cost ~9.5k tokens). Raise it if a tool needs more code.
+        self._max_tokens = int(os.environ.get("BUILDSHIP_MAX_TOKENS", "6000"))
 
     def write_tool(
         self, task: str, research: str, feedback: str, current_tools: list[str]
@@ -170,6 +173,7 @@ class NebiusLLMClient:
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
+                max_tokens=self._max_tokens,
                 response_format={"type": "json_object"},
             )
             usage = getattr(response, "usage", None)

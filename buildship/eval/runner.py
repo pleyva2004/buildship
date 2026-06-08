@@ -192,15 +192,50 @@ def run_eval(
     return _aggregate(results)
 
 
-def run_ablation(tasks: list[EvalTask] | None = None) -> dict[str, EvalReport]:
-    """Run every ablation arm (fresh library each) and return {arm_name: EvalReport}."""
-    reports: dict[str, EvalReport] = {}
+def run_ablation(tasks: list[EvalTask] | None = None, repeats: int = 1) -> dict[str, "ArmSummary"]:
+    """Run every ablation arm `repeats` times (fresh library each run) and return
+    {arm_name: ArmSummary} averaging the metrics across repeats (single runs are noisy)."""
+    summary: dict[str, ArmSummary] = {}
     for arm in ABLATION_ARMS:
-        if True:  # per-arm banner
-            print(f"\n--- arm: {arm.name} (gate={arm.gate}, max_attempts={arm.max_attempts}, "
-                  f"feedback={arm.feedback_mode}) ---")
-        reports[arm.name] = run_eval(tasks, arm=arm)
-    return reports
+        reps: list[EvalReport] = []
+        for i in range(max(1, repeats)):
+            print(f"\n--- arm: {arm.name} [{i + 1}/{repeats}] (gate={arm.gate}, "
+                  f"max_attempts={arm.max_attempts}, feedback={arm.feedback_mode}) ---")
+            reps.append(run_eval(tasks, arm=arm))
+        summary[arm.name] = _summarize(arm.name, reps)
+    return summary
+
+
+@dataclass
+class ArmSummary:
+    name: str
+    repeats: int
+    build_mean: float
+    e2e_mean: float
+    reuse_mean: float
+    attempts_mean: float
+    tokens_mean: float
+    build_runs: list[float]
+    e2e_runs: list[float]
+
+
+def _summarize(name: str, reports: list[EvalReport]) -> ArmSummary:
+    n = len(reports)
+
+    def _mean(vals: list[float]) -> float:
+        return round(sum(vals) / n, 3) if n else 0.0
+
+    return ArmSummary(
+        name=name,
+        repeats=n,
+        build_mean=_mean([r.build_success_rate for r in reports]),
+        e2e_mean=_mean([r.e2e_success_rate for r in reports]),
+        reuse_mean=_mean([r.reuse_rate for r in reports]),
+        attempts_mean=_mean([r.mean_attempts_to_success for r in reports]),
+        tokens_mean=round(sum(r.total_tokens for r in reports) / n) if n else 0,
+        build_runs=[r.build_success_rate for r in reports],
+        e2e_runs=[r.e2e_success_rate for r in reports],
+    )
 
 
 def main() -> int:
@@ -218,15 +253,18 @@ def main() -> int:
     out = Path(os.environ.get("BUILDSHIP_EVAL_REPORT", "eval_report.json"))
 
     if "ablation" in sys.argv[1:]:
-        print(f"buildship eval — ABLATION across {len(ABLATION_ARMS)} arms, "
+        args = sys.argv[1:]
+        idx = args.index("ablation")
+        repeats = int(args[idx + 1]) if idx + 1 < len(args) and args[idx + 1].isdigit() else 1
+        print(f"buildship eval — ABLATION across {len(ABLATION_ARMS)} arms x{repeats}, "
               f"{len(BENCHMARK)} tasks, sandbox={os.getenv('BUILDSHIP_SANDBOX', 'composio')}")
-        reports = run_ablation()
-        out.write_text(json.dumps({k: asdict(v) for k, v in reports.items()}, indent=2))
-        print("\n=== ABLATION SUMMARY (the pre-registered claim: full beats the rest) ===")
-        print(f"  {'arm':12s} {'build':>6s} {'e2e':>6s} {'reuse':>6s} {'attempts':>9s} {'tokens':>8s}")
-        for name, rep in reports.items():
-            print(f"  {name:12s} {rep.build_success_rate:6.3f} {rep.e2e_success_rate:6.3f} "
-                  f"{rep.reuse_rate:6.3f} {rep.mean_attempts_to_success:9.2f} {rep.total_tokens:8d}")
+        summaries = run_ablation(repeats=repeats)
+        out.write_text(json.dumps({k: asdict(v) for k, v in summaries.items()}, indent=2))
+        print(f"\n=== ABLATION SUMMARY (mean over {repeats} run(s); the claim: full beats the rest) ===")
+        print(f"  {'arm':12s} {'build':>6s} {'e2e':>6s} {'reuse':>6s} {'attempts':>9s} {'tokens':>8s}   runs(e2e)")
+        for s in summaries.values():
+            print(f"  {s.name:12s} {s.build_mean:6.3f} {s.e2e_mean:6.3f} {s.reuse_mean:6.3f} "
+                  f"{s.attempts_mean:9.2f} {s.tokens_mean:8d}   {s.e2e_runs}")
         print(f"\nreport written to {out}")
         return 0
 
