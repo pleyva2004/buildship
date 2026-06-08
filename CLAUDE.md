@@ -80,6 +80,19 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-08 — Reuse fix + test suite + Stage 2 eval harness
+
+**Done:**
+- **Core reuse fix** (`buildship_core.py`, approved edit): the registry keys off `needed_tool` (the capability), decoupled from the function's def name — `admit(..., key=)`, `callable()` resolves by the contract's def name with a sole-function fallback, and `Harness.run` admits/reuses/acts on `needed_tool`. Verified: build → reuse across runs (no rebuild).
+- **Offline pytest suite** (`tests/`, 37 tests, ~1s, `uv run -m pytest`): harness loop (gate, reuse, self-correction feedback carries the traceback, bounded budget, admit refusal); adapter helpers (JSON parse, `ast` name-align, output coercion, pass/fail heuristics, `LocalSandbox` incl. a real matplotlib chart); and the eval verifiers + metrics math.
+- **Codegen generalized** — task-driven signatures (no hardcoded chart convention); the hero task text now states its signature; `NebiusLLMClient` tracks cumulative token usage (cost KPI).
+- **Stage 2 eval harness** (`buildship/eval/`): 12 held-out tasks across compute/transform/chart, each with an automatic verifier; the runner drives the Harness (no-op action) and reports build-success / end-to-end / reuse / attempts-to-success / tokens. Run live: `uv run -m buildship.eval`.
+
+**Open / next:**
+- Live runs still need the user's own terminal (the proxy blocks vendor APIs in-session): `smoke_hero.py`, `uv run -m buildship.eval`, and `uv run -m buildship.eval ablation`.
+- **Ablation arms built** (`buildship/eval/runner.py`): full / no_gate / budget_1 / no_feedback via Harness config hooks (`gate`, `max_attempts`, `feedback_mode`) — just run them live for the paper numbers.
+- Feature/use-case backlog captured in `IDEAS.md` (recommended-next shortlist at top).
+
 ### 2026-06-07 — Stage 0/1: vendor adapters wired
 
 **Phase:** Stage 0 item (5) done — the four core Protocols are implemented; ready for a live end-to-end run once keys are added. Core (`buildship_core.py`) untouched.
