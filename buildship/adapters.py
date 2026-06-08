@@ -385,9 +385,16 @@ class ComposioAction:
         out_path = str(self.artifact_dir / f"{tool_name}.png")
         produced = self._render(tool, out_path)
 
-        arguments: dict[str, Any] = {
-            self.text_arg: f"buildship built and ran `{tool_name}` — chart at {produced}"
-        }
+        # A send-message action can't carry a file; the upload action attaches it.
+        # Don't leak the local abspath into a text-only message (the reader can't use it).
+        if self.file_arg:
+            caption = f"buildship auto-built `{tool_name}` and ran it — chart attached."
+        else:
+            caption = (
+                f"buildship auto-built and ran `{tool_name}`; "
+                f"chart saved as {Path(produced).name}."
+            )
+        arguments: dict[str, Any] = {self.text_arg: caption}
         if self.channel:
             arguments[self.channel_arg] = self.channel
         if self.file_arg:
