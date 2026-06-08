@@ -1,6 +1,6 @@
-# Forge — Product Plan *(working name; swap freely)*
+# Buildship — Product Plan *(working name; swap freely)*
 
-**Thesis:** An agent's capabilities should be external, recoverable, validated state — not baked into weights or hand-wired ahead of time. Forge is a *state-externalizing harness* that lets a **frozen** model grow its own toolset under control: when it hits a task it can't do, it builds the tool, proves it works, keeps it, and reuses it.
+**Thesis:** An agent's capabilities should be external, recoverable, validated state — not baked into weights or hand-wired ahead of time. Buildship is a *state-externalizing harness* that lets a **frozen** model grow its own toolset under control: when it hits a task it can't do, it builds the tool, proves it works, keeps it, and reuses it.
 
 ---
 
@@ -41,7 +41,7 @@
 
 The missing piece isn't codegen; it's the disciplined loop that makes self-extension trustworthy and durable.
 
-**How Forge fits the problem.**
+**How Buildship fits the problem.**
 - Removes the human tool-authoring bottleneck for the long tail of capabilities.
 - The **validation gate** turns "let the agent write code" (flaky, scary) into propose-and-verify (reliable, auditable) — the difference between a party trick and something you'd deploy. *SkillOpt's evidence: most proposed edits are rejected by the gate; only the ones that prove out survive.*
 - **State-externalization** makes new capabilities persistent, inspectable, auditable, and transferable — they compound across sessions instead of evaporating.
@@ -92,4 +92,4 @@ Best-overall is won on necessity + narrative + a memorable beat — and this hit
 
 ---
 
-*Lineage: the "state-externalizing harness" frame and the validation-gate / rejected-edit / budget discipline draw on SkillOpt (text-space skill optimization) and Harness-1 (RL search agents with state-externalizing harnesses). Forge points the same philosophy at a new axis — the agent's executable capabilities.*
+*Lineage: the "state-externalizing harness" frame and the validation-gate / rejected-edit / budget discipline draw on SkillOpt (text-space skill optimization) and Harness-1 (RL search agents with state-externalizing harnesses). Buildship points the same philosophy at a new axis — the agent's executable capabilities.*

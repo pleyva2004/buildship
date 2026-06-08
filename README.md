@@ -43,7 +43,7 @@ Run everything from the repo root.
 
 ## Project docs
 
-- [`forge-product-plan.md`](./forge-product-plan.md) — the *what / why / who*.
+- [`buildship-product-plan.md`](./buildship-product-plan.md) — the *what / why / who*.
 - [`stages.md`](./stages.md) — the *how / when* (priority-ordered build plan).
 
 ## Status

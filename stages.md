@@ -1,4 +1,4 @@
-# Forge — Build Plan *(priority-ordered)*
+# Buildship — Build Plan *(priority-ordered)*
 
 **Priorities (your call):** 1) win the hackathon · 2) paper-shaped result · 3) shippable harness.
 
@@ -62,7 +62,7 @@ The pivot: from *"it built a tool live"* to *"we measured that disciplined self-
 
 **Optional headline contribution.** Implement SkillOpt's offline loop to optimize the *tool-authoring skill* (the prose policy for *how* it writes tools) and show the optimized skill lifts held-out build success — SkillOpt extended to a code-tool-building domain. More ambitious swing: optimize the *library itself* as external state (which tools to keep / how to document them), the open thread from their Outlook.
 
-**Write-up framing.** Procedures-as-text (SkillOpt) and search-state-as-external (Harness-1) → *capabilities-as-code* (Forge): same state-externalizing philosophy, new axis. Position against both.
+**Write-up framing.** Procedures-as-text (SkillOpt) and search-state-as-external (Harness-1) → *capabilities-as-code* (Buildship): same state-externalizing philosophy, new axis. Position against both.
 
 **Reuse, don't rebuild.** If Stage 0 held, this stage is *additive*: the harness, registry, verification records, and trajectory logs are already your experimental apparatus.
 
@@ -75,8 +75,8 @@ Directional, lowest priority:
 - **Library curation** — dedupe, versioning, retire flaky tools; the architect/worker split for reliability.
 - **Make it usable** — clean UI/CLI, docs, demo video, open-source repo.
 
-This is where Forge becomes something others can run. Touch it only after 1 and 2 are solid.
+This is where Buildship becomes something others can run. Touch it only after 1 and 2 are solid.
 
 ---
 
-*Companion to `forge-product-plan.md` (the what / why / who). This is the how / when.*
+*Companion to `buildship-product-plan.md` (the what / why / who). This is the how / when.*
