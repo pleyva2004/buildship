@@ -88,6 +88,8 @@ buildship/
 - **Codegen generalized** — task-driven signatures (no hardcoded chart convention); the hero task text now states its signature; `NebiusLLMClient` tracks cumulative token usage (cost KPI).
 - **Stage 2 eval harness** (`buildship/eval/`): 12 held-out tasks across compute/transform/chart, each with an automatic verifier; the runner drives the Harness (no-op action) and reports build-success / end-to-end / reuse / attempts-to-success / tokens. Run live: `uv run -m buildship.eval`.
 
+**Live result (2026-06-08, user's terminal · DeepSeek-V3.2 · local sandbox): 12/12 — build-success 1.0, end-to-end 1.0, mean attempts-to-success 1.17, ~26.5k tokens.** Notes: `transform_snake` reliably needs the full 3-attempt self-correction budget; `compute_is_prime` occasionally emits a bloated non-JSON reply that the codegen JSON-retry recovers. Two live-found fixes landed: canonical self-test guidance (`transform_csv`) and JSON-retry resilience (`compute_is_prime`).
+
 **Open / next:**
 - Live runs still need the user's own terminal (the proxy blocks vendor APIs in-session): `smoke_hero.py`, `uv run -m buildship.eval`, and `uv run -m buildship.eval ablation`.
 - **Ablation arms built** (`buildship/eval/runner.py`): full / no_gate / budget_1 / no_feedback via Harness config hooks (`gate`, `max_attempts`, `feedback_mode`) — just run them live for the paper numbers.
