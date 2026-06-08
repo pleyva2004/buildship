@@ -26,8 +26,9 @@ load_dotenv()
 REQUIRED_KEYS = ["NEBIUS_API_KEY", "TAVILY_API_KEY", "COMPOSIO_API_KEY"]
 
 HERO_TASK = (
-    "Plot a dict of daily values as a bar chart and save it as a PNG file, "
-    "so it can be posted to Slack."
+    "Implement `def make_bar_chart(data: dict, out_path: str) -> str` that renders the "
+    "dict (label -> numeric value) as a bar chart PNG saved to out_path using matplotlib "
+    "(Agg backend), and returns out_path. The chart will be posted to Slack."
 )
 NEEDED_TOOL = "bar_chart_png"  # the capability gap label (the LLM names the actual tool)
 

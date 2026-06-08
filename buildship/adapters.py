@@ -100,24 +100,24 @@ Given a TASK the agent cannot yet do (plus optional research notes and feedback 
 a prior failed attempt), you write ONE small, self-contained Python tool.
 
 Respond with ONLY a single JSON object (no markdown, no prose) with EXACTLY these keys:
-  - "name":      snake_case function name; this is also the registry key.
-  - "signature": the def line, e.g. "def make_bar_chart(data: dict, out_path: str) -> str:".
+  - "name":      snake_case function name; it MUST match the def in "code".
+  - "signature": the def line, copied verbatim from "code".
   - "docstring": what the tool does, its args, and what it returns.
   - "code":      the FULL python source of the function, including every import it needs
                  and the complete def. It must be runnable as-is.
   - "self_test": python that exercises the function and PROVES it works. It is appended
                  to "code" in the SAME module, so call the function by its name directly.
-                 It must build its own small sample data, call the function with a
-                 temp output path (use tempfile), assert the result file exists and is
-                 non-empty, and finally print exactly "SELF_TEST_OK".
+                 Build small inputs, call the function, assert the result is correct
+                 (for file-producing tools, assert the output file exists and is
+                 non-empty), and finally print exactly "SELF_TEST_OK".
   - "requires":  list of pip package names the code imports, e.g. ["matplotlib"].
 
 Hard rules (the tool is REJECTED unless ALL hold):
-  1. CALLING CONVENTION: the function MUST accept exactly (data: dict, out_path: str)
-     and MUST return out_path (the path to the artifact it wrote).
-  2. For charts use matplotlib with a NON-interactive backend: put
-     `import matplotlib` then `matplotlib.use("Agg")` BEFORE importing pyplot.
-     Save the figure to out_path with plt.savefig(out_path); never call plt.show().
+  1. Implement EXACTLY the function name and signature described in the TASK. If the
+     task gives no signature, choose a clear typed one and state it in "signature".
+  2. For tools that render charts/images, use matplotlib with a NON-interactive
+     backend: `import matplotlib` then `matplotlib.use("Agg")` BEFORE importing
+     pyplot; save with plt.savefig(path); never call plt.show().
   3. Keep it small, deterministic, and dependency-light.
   4. If feedback describes a previous failure, FIX that specific error; do not repeat it.
 """
@@ -151,6 +151,7 @@ class NebiusLLMClient:
             base_url=base_url
             or os.environ.get("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1"),
         )
+        self.total_tokens = 0  # cumulative usage across write_tool calls (cost KPI)
 
     def write_tool(
         self, task: str, research: str, feedback: str, current_tools: list[str]
@@ -165,6 +166,9 @@ class NebiusLLMClient:
             temperature=self.temperature,
             response_format={"type": "json_object"},
         )
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            self.total_tokens += int(getattr(usage, "total_tokens", 0) or 0)
         data = _parse_tool_json(response.choices[0].message.content or "")
         code = data["code"]
         return ToolContract(

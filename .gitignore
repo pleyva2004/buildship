@@ -64,6 +64,7 @@ generated_tools/*.py
 !generated_tools/.gitkeep
 artifacts/
 *_library.json
+eval_report.json
 
 # ---- Claude Code ----
 .claude/settings.local.json
