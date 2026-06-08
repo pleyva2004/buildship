@@ -97,3 +97,74 @@ def test_local_sandbox_runs_real_matplotlib_chart_tool():
     passed, output = LocalSandbox().run(source)
     assert passed is True, output
     assert "SELF_TEST_OK" in output
+
+
+# --- NebiusLLMClient JSON-retry behavior (client mocked; no network) ---
+class _FakeMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content):
+        self.message = _FakeMessage(content)
+
+
+class _FakeUsage:
+    total_tokens = 7
+
+
+class _FakeResponse:
+    def __init__(self, content):
+        self.choices = [_FakeChoice(content)]
+        self.usage = _FakeUsage()
+
+
+class _FakeCompletions:
+    def __init__(self, contents):
+        self._contents = list(contents)
+        self.calls = 0
+
+    def create(self, **kwargs):
+        self.calls += 1
+        return _FakeResponse(self._contents.pop(0))
+
+
+def _fake_client(contents):
+    comp = _FakeCompletions(contents)
+    client = type("C", (), {"chat": type("Ch", (), {"completions": comp})()})()
+    return client, comp
+
+
+_GOOD_JSON = (
+    '{"name": "f", "signature": "def f():", "docstring": "d", '
+    '"code": "def f():\\n    return 1\\n", "self_test": "print(1)", "requires": []}'
+)
+
+
+def test_write_tool_retries_then_succeeds(monkeypatch):
+    monkeypatch.setenv("NEBIUS_API_KEY", "test-key")
+    from buildship.adapters import NebiusLLMClient
+
+    llm = NebiusLLMClient()
+    client, comp = _fake_client(["this is not json", _GOOD_JSON])
+    llm._client = client
+
+    contract = llm.write_tool("task", "research", "", [])
+    assert contract.name == "f"
+    assert comp.calls == 2            # retried once after the bad reply
+    assert llm.total_tokens == 14     # tokens accrued on both calls
+
+
+def test_write_tool_raises_after_exhausting_retries(monkeypatch):
+    monkeypatch.setenv("NEBIUS_API_KEY", "test-key")
+    from buildship.adapters import NebiusLLMClient
+
+    llm = NebiusLLMClient()
+    client, comp = _fake_client(["nope", "still nope", "nope again"])
+    llm._client = client
+
+    import pytest as _pytest
+    with _pytest.raises(ValueError):
+        llm.write_tool("task", "research", "", [])
+    assert comp.calls == 3            # respects BUILDSHIP_CODEGEN_JSON_RETRIES default

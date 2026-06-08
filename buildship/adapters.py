@@ -154,32 +154,50 @@ class NebiusLLMClient:
             or os.environ.get("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1"),
         )
         self.total_tokens = 0  # cumulative usage across write_tool calls (cost KPI)
+        # Retries to coax a valid JSON tool object out of a bloated/malformed reply.
+        self._json_retries = int(os.environ.get("BUILDSHIP_CODEGEN_JSON_RETRIES", "3"))
 
     def write_tool(
         self, task: str, research: str, feedback: str, current_tools: list[str]
     ) -> ToolContract:
-        user = self._build_prompt(task, research, feedback, current_tools)
-        response = self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": _CODEGEN_SYSTEM},
-                {"role": "user", "content": user},
-            ],
-            temperature=self.temperature,
-            response_format={"type": "json_object"},
-        )
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            self.total_tokens += int(getattr(usage, "total_tokens", 0) or 0)
-        data = _parse_tool_json(response.choices[0].message.content or "")
-        code = data["code"]
-        return ToolContract(
-            name=_align_tool_name(data["name"], code),
-            signature=data["signature"],
-            docstring=data["docstring"],
-            code=code,
-            self_test=data["self_test"],
-            requires=list(data.get("requires") or []),
+        messages = [
+            {"role": "system", "content": _CODEGEN_SYSTEM},
+            {"role": "user", "content": self._build_prompt(task, research, feedback, current_tools)},
+        ]
+        last_error: Exception | None = None
+        for _ in range(max(1, self._json_retries)):
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=self.temperature,
+                response_format={"type": "json_object"},
+            )
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                self.total_tokens += int(getattr(usage, "total_tokens", 0) or 0)
+            content = response.choices[0].message.content or ""
+            try:
+                data = _parse_tool_json(content)
+                code = data["code"]
+                return ToolContract(
+                    name=_align_tool_name(data["name"], code),
+                    signature=data["signature"],
+                    docstring=data["docstring"],
+                    code=code,
+                    self_test=data["self_test"],
+                    requires=list(data.get("requires") or []),
+                )
+            except (ValueError, KeyError, TypeError) as exc:
+                # Malformed / bloated reply -> feed it back and ask for clean JSON.
+                last_error = exc
+                messages.append({"role": "assistant", "content": content[:2000]})
+                messages.append({"role": "user", "content": (
+                    "That was not a single valid JSON object with the required keys "
+                    "(name, signature, docstring, code, self_test, requires). "
+                    "Reply with ONLY that JSON object — no prose, no markdown fences."
+                )})
+        raise ValueError(
+            f"codegen did not return valid JSON after {self._json_retries} attempts: {last_error}"
         )
 
     @staticmethod
