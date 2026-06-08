@@ -1,8 +1,8 @@
-# Forge
+# Buildship
 
-> **Working name — swap freely.** An agent that writes its own tools.
+> **Working name.** An agent that writes its own tools.
 
-**Thesis:** an agent's capabilities should be external, recoverable, validated state — not baked into weights or hand-wired ahead of time. Forge is a *state-externalizing harness* that lets a **frozen** model grow its own toolset under control: when it hits a task it can't do, it builds the tool, proves it works, keeps it, and reuses it.
+**Thesis:** an agent's capabilities should be external, recoverable, validated state — not baked into weights or hand-wired ahead of time. Buildship is a *state-externalizing harness* that lets a **frozen** model grow its own toolset under control: when it hits a task it can't do, it builds the tool, proves it works, keeps it, and reuses it.
 
 ## The loop
 
@@ -26,9 +26,20 @@ A state-externalizing harness. The model owns only *semantic* decisions (what to
 
 ## Stack
 
+- **Package manager:** [uv](https://docs.astral.sh/uv/) (Python 3.12).
 - **Codegen:** Nebius coder model (DeepSeek-V3 or large Qwen), low temperature.
 - **Sandbox + actions:** Composio remote workbench + `@action` registration.
 - **Research:** Tavily for the API-research step.
+
+## Getting started
+
+```bash
+cp .env.example .env   # then fill in your keys
+uv sync                # install dependencies into .venv
+uv run main.py         # config check — verifies your keys are loaded
+```
+
+Run everything from the repo root.
 
 ## Project docs
 
