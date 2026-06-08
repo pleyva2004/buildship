@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -102,24 +103,64 @@ def _aggregate(results: list[TaskResult]) -> EvalReport:
     )
 
 
-def run_eval(tasks: list[EvalTask] | None = None, searcher: Any = None) -> EvalReport:
-    """Run the benchmark with live adapters. Returns an EvalReport."""
-    from buildship.adapters import NebiusLLMClient, TavilySearcher, make_sandbox
+@dataclass
+class Arm:
+    """An ablation configuration for the harness."""
+    name: str
+    gate: bool = True
+    max_attempts: int = 3
+    feedback_mode: str = "full"
 
+
+# The pre-registered ablation arms (stages.md Stage 2): full vs no-gate vs
+# bounded-1 vs no-rejected-buffer.
+ABLATION_ARMS = [
+    Arm("full"),                                # gate on, 3 attempts, full feedback
+    Arm("no_gate", gate=False),                 # admit first codegen regardless of self-test
+    Arm("budget_1", max_attempts=1),            # build-or-fail-fast (no self-correction)
+    Arm("no_feedback", feedback_mode="none"),   # retries start from scratch
+]
+
+
+def run_eval(
+    tasks: list[EvalTask] | None = None,
+    *,
+    arm: Arm | None = None,
+    registry: ToolRegistry | None = None,
+    llm: Any = None,
+    sandbox: Any = None,
+    searcher: Any = None,
+    action: Any = None,
+    quiet: bool = False,
+) -> EvalReport:
+    """Run the benchmark for one ablation arm.
+
+    Adapters default to the live ones (Nebius / sandbox / Tavily), but each can be
+    injected for offline testing. A fresh tool library is used per call so arms
+    don't contaminate each other.
+    """
+    arm = arm or Arm("full")
     tasks = tasks or BENCHMARK
-    registry = ToolRegistry(os.environ.get("BUILDSHIP_EVAL_LIBRARY", "eval_library.json"))
-    llm = _CountingLLM(NebiusLLMClient())
+
+    if llm is None or sandbox is None or searcher is None:
+        from buildship.adapters import NebiusLLMClient, TavilySearcher, make_sandbox
+
+        llm = llm or NebiusLLMClient()
+        sandbox = sandbox or make_sandbox()
+        searcher = searcher or TavilySearcher()
+
+    counting = _CountingLLM(llm)
+    if registry is None:
+        registry = ToolRegistry(os.path.join(tempfile.mkdtemp(), "eval_library.json"))
     harness = Harness(
-        llm=llm,
-        sandbox=make_sandbox(),
-        searcher=searcher or TavilySearcher(),
-        action=NoOpAction(),
-        registry=registry,
+        llm=counting, sandbox=sandbox, searcher=searcher,
+        action=action or NoOpAction(), registry=registry,
+        gate=arm.gate, max_attempts=arm.max_attempts, feedback_mode=arm.feedback_mode,
     )
 
     results: list[TaskResult] = []
     for task in tasks:
-        before_calls, before_tokens = llm.calls, llm.total_tokens
+        before_calls, before_tokens = counting.calls, counting.total_tokens
         try:
             res = harness.run(task.task, task.needed_tool)
             match = _OUTCOME.match(res)
@@ -128,7 +169,9 @@ def run_eval(tasks: list[EvalTask] | None = None, searcher: Any = None) -> EvalR
             outcome, res = "error", repr(exc)
 
         e2e_ok, detail = False, res
-        if registry.has(task.needed_tool):
+        # Verify any admitted tool (incl. ungated arm's failing-self-test tools),
+        # so the end-to-end verifier — not the gate — judges correctness.
+        if registry.get(task.needed_tool) is not None:
             try:
                 e2e_ok, detail = task.verify(registry.callable(task.needed_tool))
             except Exception as exc:  # noqa: BLE001
@@ -137,18 +180,32 @@ def run_eval(tasks: list[EvalTask] | None = None, searcher: Any = None) -> EvalR
         results.append(
             TaskResult(
                 id=task.id, category=task.category, needed_tool=task.needed_tool,
-                outcome=outcome, attempts=llm.calls - before_calls,
-                e2e_ok=e2e_ok, detail=detail[:300], tokens=llm.total_tokens - before_tokens,
+                outcome=outcome, attempts=counting.calls - before_calls,
+                e2e_ok=e2e_ok, detail=detail[:300], tokens=counting.total_tokens - before_tokens,
             )
         )
-        flag = "OK " if e2e_ok else "XX "
-        print(f"  {flag}{task.id:24s} {outcome:16s} attempts={results[-1].attempts} "
-              f"tokens={results[-1].tokens}  {detail[:60]}")
+        if not quiet:
+            flag = "OK " if e2e_ok else "XX "
+            print(f"  {flag}{task.id:24s} {outcome:16s} attempts={results[-1].attempts} "
+                  f"tokens={results[-1].tokens}  {detail[:60]}")
 
     return _aggregate(results)
 
 
+def run_ablation(tasks: list[EvalTask] | None = None) -> dict[str, EvalReport]:
+    """Run every ablation arm (fresh library each) and return {arm_name: EvalReport}."""
+    reports: dict[str, EvalReport] = {}
+    for arm in ABLATION_ARMS:
+        if True:  # per-arm banner
+            print(f"\n--- arm: {arm.name} (gate={arm.gate}, max_attempts={arm.max_attempts}, "
+                  f"feedback={arm.feedback_mode}) ---")
+        reports[arm.name] = run_eval(tasks, arm=arm)
+    return reports
+
+
 def main() -> int:
+    import sys
+
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -158,11 +215,24 @@ def main() -> int:
         print("Missing keys: " + ", ".join(missing) + ". Fill in .env and re-run.")
         return 1
 
+    out = Path(os.environ.get("BUILDSHIP_EVAL_REPORT", "eval_report.json"))
+
+    if "ablation" in sys.argv[1:]:
+        print(f"buildship eval — ABLATION across {len(ABLATION_ARMS)} arms, "
+              f"{len(BENCHMARK)} tasks, sandbox={os.getenv('BUILDSHIP_SANDBOX', 'composio')}")
+        reports = run_ablation()
+        out.write_text(json.dumps({k: asdict(v) for k, v in reports.items()}, indent=2))
+        print("\n=== ABLATION SUMMARY (the pre-registered claim: full beats the rest) ===")
+        print(f"  {'arm':12s} {'build':>6s} {'e2e':>6s} {'reuse':>6s} {'attempts':>9s} {'tokens':>8s}")
+        for name, rep in reports.items():
+            print(f"  {name:12s} {rep.build_success_rate:6.3f} {rep.e2e_success_rate:6.3f} "
+                  f"{rep.reuse_rate:6.3f} {rep.mean_attempts_to_success:9.2f} {rep.total_tokens:8d}")
+        print(f"\nreport written to {out}")
+        return 0
+
     print(f"buildship eval — {len(BENCHMARK)} tasks, sandbox="
           f"{os.getenv('BUILDSHIP_SANDBOX', 'composio')}\n")
     report = run_eval()
-
-    out = Path(os.environ.get("BUILDSHIP_EVAL_REPORT", "eval_report.json"))
     out.write_text(json.dumps(asdict(report), indent=2))
     print("\n=== METRICS ===")
     print(f"  build-success rate : {report.build_success_rate}")

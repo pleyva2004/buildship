@@ -88,14 +88,17 @@ class ToolRegistry:
         contract: ToolContract,
         verification: VerificationRecord,
         key: str | None = None,
+        force: bool = False,
     ) -> None:
         """Validation gate: only call this once a tool has PASSED its test.
 
         `key` is the registry / capability key (e.g. the requested `needed_tool`),
         defaulting to the tool's own name. Keeping the key distinct from the
         function's def name lets reuse hit on the requested capability even when
-        the model named the function something else."""
-        if verification.status != "passed":
+        the model named the function something else.
+        `force=True` bypasses the pass requirement — used only by the no-gate
+        ablation arm to admit the first codegen regardless of its self-test."""
+        if not force and verification.status != "passed":
             raise ValueError("refusing to admit a tool that did not pass its test")
         self.tools[key or contract.name] = ToolEntry(contract, verification)
         self.save()
@@ -224,12 +227,23 @@ class Harness:
         searcher: Searcher,
         action: Action,
         registry: ToolRegistry | None = None,
+        *,
+        gate: bool = True,
+        max_attempts: int = 3,
+        feedback_mode: str = "full",
     ):
         self.llm = llm
         self.sandbox = sandbox
         self.searcher = searcher
         self.action = action
         self.registry = registry or ToolRegistry()
+        # Ablation hooks — defaults preserve standard behavior:
+        #   gate=False        admit the first codegen regardless of its self-test
+        #   max_attempts=N    bounded edit budget (1 == build-or-fail-fast)
+        #   feedback_mode     "full" | "traceback" | "none" (rejected-buffer ablation)
+        self.gate = gate
+        self.max_attempts = max_attempts
+        self.feedback_mode = feedback_mode
 
     def run(self, task: str, needed_tool: str) -> str:
         log = TrajectoryLogger()
@@ -247,7 +261,7 @@ class Harness:
         research = self.searcher.search(query)
         log.log("research", query=query, result=research[:500])
 
-        budget = BuildBudget()
+        budget = BuildBudget(max_attempts=self.max_attempts)
         rejected: list[str] = []   # the rejected-edit buffer (negative feedback)
         feedback = ""
 
@@ -264,24 +278,37 @@ class Harness:
             )
             log.log("test", attempt=budget.attempts, passed=passed, output=output[:500])
 
-            if passed:  # ---- validation gate ----
-                self.registry.admit(contract, verification, key=needed_tool)
-                log.log("admit", tool=needed_tool, function=contract.name)
+            if passed or not self.gate:  # ---- validation gate (ablatable) ----
+                self.registry.admit(
+                    contract, verification, key=needed_tool, force=not self.gate
+                )
+                log.log("admit", tool=needed_tool, function=contract.name,
+                        gated=self.gate, passed=passed)
                 result = self.action.execute(
                     needed_tool, self.registry.callable(needed_tool)
                 )
                 return self._finish(log, task, "built", result)
 
-            # Failed -> buffer as negative feedback, retry with the traceback.
+            # Failed -> buffer as negative feedback, retry per feedback_mode.
             rejected.append(output)
-            feedback = (
-                "Previous attempt failed its self-test. Do NOT repeat these errors.\n"
-                f"Traceback:\n{output}\n"
-                f"Rejected attempts so far: {len(rejected)}."
-            )
+            feedback = self._make_feedback(output, rejected)
             log.log("reject", attempt=budget.attempts)
 
         return self._finish(log, task, "exhausted_budget", "")
+
+    def _make_feedback(self, output: str, rejected: list[str]) -> str:
+        """Build retry feedback. `feedback_mode` ablates the rejected-edit buffer:
+        'full' = traceback + rejected count + don't-repeat; 'traceback' = just the
+        traceback; 'none' = no feedback (each retry starts from scratch)."""
+        if self.feedback_mode == "none":
+            return ""
+        if self.feedback_mode == "traceback":
+            return f"Previous attempt failed its self-test.\nTraceback:\n{output}"
+        return (
+            "Previous attempt failed its self-test. Do NOT repeat these errors.\n"
+            f"Traceback:\n{output}\n"
+            f"Rejected attempts so far: {len(rejected)}."
+        )
 
     def _finish(self, log: TrajectoryLogger, task: str, outcome: str, result: str) -> str:
         path = log.save(task, outcome)
