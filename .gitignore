@@ -78,3 +78,6 @@ Thumbs.db
 
 # stray chart artifacts at repo root
 /*.png
+
+# experiment run outputs (read by Claude, not committed)
+*.out
