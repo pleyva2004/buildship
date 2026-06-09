@@ -29,7 +29,7 @@ _OUTCOME = re.compile(r"^\[(\w+)\]")
 _TRANSIENT_RETRIES = int(os.environ.get("BUILDSHIP_TRANSIENT_RETRIES", "2"))
 _TRANSIENT_ERRORS = {
     "APIConnectionError", "APITimeoutError", "RateLimitError", "InternalServerError",
-    "APIError", "ConnectionError", "Timeout", "ReadTimeout", "ConnectError",
+    "APIError", "ConnectionError", "Timeout", "TimeoutError", "ReadTimeout", "ConnectError",
     "ProxyError", "MaxRetryError",
 }
 
