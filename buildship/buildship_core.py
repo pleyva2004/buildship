@@ -232,6 +232,7 @@ class Harness:
         max_attempts: int = 3,
         feedback_mode: str = "full",
         independent_verifier: Callable[[str, "ToolContract"], str] | None = None,
+        gate_check: Callable[["ToolContract"], "tuple[bool, str]"] | None = None,
     ):
         self.llm = llm
         self.sandbox = sandbox
@@ -249,6 +250,10 @@ class Harness:
         self.max_attempts = max_attempts
         self.feedback_mode = feedback_mode
         self.independent_verifier = independent_verifier
+        # gate_check(contract) -> (passed, output): a NON-LLM gate (e.g. a ground-truth
+        # oracle) that REPLACES the sandbox self-test when set; takes precedence over
+        # independent_verifier.
+        self.gate_check = gate_check
 
     def run(self, task: str, needed_tool: str) -> str:
         log = TrajectoryLogger()
@@ -275,16 +280,18 @@ class Harness:
             contract = self.llm.write_tool(task, research, feedback, self.registry.list_names())
             log.log("codegen", attempt=budget.attempts, name=contract.name)
 
-            # The gate signal: the model's own self-test, OR — when configured — an
-            # independently-written test that never saw this implementation.
-            if self.independent_verifier is not None:
+            # The gate signal, in precedence order: a non-LLM oracle (gate_check), an
+            # independently-written LLM test, or the model's own self-test.
+            if self.gate_check is not None:
+                passed, output = self.gate_check(contract)
+            elif self.independent_verifier is not None:
                 gate_source = (
                     f"{contract.code}\n\n# --- independent test ---\n"
                     f"{self.independent_verifier(task, contract)}\n"
                 )
+                passed, output = self.sandbox.run(gate_source)
             else:
-                gate_source = contract.source()
-            passed, output = self.sandbox.run(gate_source)
+                passed, output = self.sandbox.run(contract.source())
             verification = VerificationRecord(
                 status="passed" if passed else "failed",
                 attempts=budget.attempts,

@@ -196,3 +196,21 @@ def test_independent_gate_catches_a_false_positive_the_self_test_misses():
     assert harness(False, "lib_fp_a.json").run("round half up", "round_half_up").startswith("[built]")
     # independent gate (fresh library): the independent test fails -> the broken tool is rejected
     assert harness(True, "lib_fp_b.json").run("round half up", "round_half_up").startswith("[exhausted_budget]")
+
+
+def test_oracle_gate_check_bypasses_sandbox_and_gates():
+    class _BoomSandbox:
+        def run(self, source):
+            raise AssertionError("sandbox must not be called when gate_check is set")
+
+    # gate_check rejects -> exhausted_budget (sandbox never consulted)
+    h_reject = Harness(llm=_LLM([_contract(), _contract()]), sandbox=_BoomSandbox(),
+                       searcher=_Searcher(), action=_Action(), registry=ToolRegistry("ora_a.json"),
+                       gate=True, max_attempts=2, gate_check=lambda c: (False, "nope"))
+    assert h_reject.run("t", "cap").startswith("[exhausted_budget]")
+
+    # gate_check accepts -> built
+    h_accept = Harness(llm=_LLM([_contract()]), sandbox=_BoomSandbox(),
+                       searcher=_Searcher(), action=_Action(), registry=ToolRegistry("ora_b.json"),
+                       gate=True, max_attempts=1, gate_check=lambda c: (True, "ok"))
+    assert h_accept.run("t", "cap").startswith("[built]")

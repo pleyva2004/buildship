@@ -38,6 +38,33 @@ def _is_transient(exc: BaseException) -> bool:
     return bool({c.__name__ for c in type(exc).__mro__} & _TRANSIENT_ERRORS)
 
 
+def _materialize(contract: Any):
+    """exec a contract's code and return its function (by name, or the sole def)."""
+    import ast as _ast
+    ns: dict[str, Any] = {}
+    exec(contract.code, ns)  # noqa: S102
+    fn = ns.get(contract.name)
+    if fn is None:
+        defs = [n.name for n in _ast.parse(contract.code).body
+                if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))]
+        if len(defs) == 1:
+            fn = ns.get(defs[0])
+    return fn
+
+
+def _oracle_gate_for(task: EvalTask):
+    """A non-LLM gate: admit only if the task's ground-truth verifier passes."""
+    def check(contract: Any) -> "tuple[bool, str]":
+        fn = _materialize(contract)
+        if fn is None:
+            return False, "no function defined"
+        try:
+            return task.verify(fn)
+        except Exception as exc:  # noqa: BLE001
+            return False, f"oracle raised: {exc!r}"
+    return check
+
+
 class NoOpAction:
     """Action stub for eval — the verifier exercises the built tool directly."""
 
@@ -128,6 +155,7 @@ class Arm:
     max_attempts: int = 3
     feedback_mode: str = "full"
     independent_gate: bool = False
+    oracle_gate: bool = False
 
 
 # The pre-registered ablation arms (stages.md Stage 2): full vs no-gate vs
@@ -138,6 +166,7 @@ ABLATION_ARMS = [
     Arm("budget_1", max_attempts=1),              # build-or-fail-fast (no self-correction)
     Arm("no_feedback", feedback_mode="none"),     # retries start from scratch
     Arm("independent_gate", independent_gate=True),  # gate on an author-INDEPENDENT test
+    Arm("oracle_gate", oracle_gate=True),  # gate on the ground-truth verifier (UPPER BOUND)
 ]
 
 
@@ -185,6 +214,7 @@ def run_eval(
 
     results: list[TaskResult] = []
     for task in tasks:
+        harness.gate_check = _oracle_gate_for(task) if arm.oracle_gate else None
         outcome, res = "error", ""
         for t_try in range(_TRANSIENT_RETRIES + 1):
             before_calls, before_tokens = counting.calls, counting.total_tokens

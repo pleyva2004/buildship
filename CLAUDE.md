@@ -80,6 +80,14 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-09 — Oracle-gate arm (trustworthy-verifier ceiling) + chain-reaction demo
+
+**Done (offline-verified — 65 tests green; built two-in-parallel via subagents):**
+- **`oracle_gate` ablation arm** — added `Harness.gate_check`, a non-LLM gate that REPLACES the self-test (precedence: `gate_check` > `independent_verifier` > self-test). The eval's `oracle_gate` arm gates on the task's ground-truth verifier — the **trustworthy-verifier upper bound**. Honest caveat: it reuses the eval verifier, so it's a *ceiling*, not a deployable gate. Expectation: it catches the `round_half_up` false positive and retries to a correct tool → should beat `no_gate`. `ABLATION_ARMS` now has 6 arms.
+- **`demo_chain.py`** — standalone chain-reaction demo: builds `aggregate_by_key`, then `make_bar_chart`, then re-runs the same steps showing all `[reused]` (zero new builds) → the library compounds. Signature-agnostic `PrintAction` (non-chart tools work), fresh `demo_library.json` per run.
+
+**Next (live, user's terminal):** `uv run -m buildship.eval ablation 3` now includes the `oracle_gate` row — the ceiling that completes the FINDINGS story (LLM-gate floor 0.54 → ungated 0.94 → trustworthy-oracle ceiling, expected ~1.0). And `uv run --python … demo_chain.py` for the compounding-library demo.
+
 ### 2026-06-09 — Independent-verifier gate arm + transient-error hardening
 
 **Done (offline-verified — 64 tests green):**
