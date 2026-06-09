@@ -18,11 +18,18 @@ beats ungated") is **refuted on this benchmark** — and the refutation is the c
 
 | arm | gate | e2e success | build rate | attempts | tokens | e2e per run |
 |---|---|---|---|---|---|---|
+| **oracle_gate** (ground-truth) | non-LLM oracle | _pending live run_ | — | — | — | — |
 | **no_gate** | off | **0.944** | 1.000 | 1.00 | 33,277 | .944 / .944 / .944 |
 | **no_feedback** | self-test | **0.944** | 1.000 | 1.06 | 39,198 | .944 / .944 / .944 |
 | full | self-test | 0.907 | 0.944 | 1.04 | 41,640 | .889 / .889 / .944 |
 | budget_1 (1 attempt) | self-test | 0.870 | 0.926 | 1.00 | 32,493 | — |
 | independent_gate | independent LLM test | **0.537** | 0.593 | 1.20 | **102,825** | .556 / .556 / .5 |
+
+*`oracle_gate` is the **trustworthy-verifier upper bound**: it gates on the task's
+ground-truth verifier (a non-LLM oracle). It reuses the eval's own verifier, so it is a
+*ceiling*, not a deployable gate — but it isolates the value of a trustworthy gate from the
+unreliability of an LLM-written one. Row pending the next live `ablation 3` run; expected to
+top the table (it should catch `round_half_up` and retry to a correct tool).*
 
 ## What drove the numbers
 
@@ -87,9 +94,11 @@ mechanism (correlated code/test errors; LLM-test unreliability) is the durable t
 
 ## Implied next experiments
 
-- **Non-LLM gate signals:** property-based checks (e.g. Hypothesis), an execution oracle,
-  or spec-derived golden examples as the gate — the arm that *should* finally beat
-  `no_gate`.
+- **Non-LLM gate signals** *(now implemented as the `oracle_gate` arm — pending the live
+  row above)*: a property-based check (e.g. Hypothesis), an execution oracle, or
+  spec-derived golden examples as the gate — the arm that *should* finally beat `no_gate`.
+  `oracle_gate` is the upper-bound proxy (ground-truth verifier as the gate); a deployable
+  version would need a verifier grounded outside model output.
 - **Ensemble verification:** require K independent tests to agree (reduce single-test
   variance) — does a majority vote tame the false-negative blow-up?
 - **Harder benchmark:** tasks where the model's first attempt is wrong *and* a faithful
