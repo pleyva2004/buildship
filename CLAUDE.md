@@ -80,6 +80,17 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-09 — Independent-verifier gate arm + transient-error hardening
+
+**Done (offline-verified — 64 tests green):**
+- **Independent-verifier gate** (the decisive experiment from the alignment finding): `Harness(independent_verifier=...)` runs the tool's code against a test written by a SEPARATE model call (`NebiusLLMClient.write_test`, which never sees the implementation) instead of the author's own self-test. New ablation arm `independent_gate`. An offline test proves it **catches a false positive the self-test misses** (buggy `round_half_up` + weak self-test → admitted by the self-test gate, rejected by the independent gate).
+- **Transient-error hardening**: the eval runner retries transient API failures (ConnectionError / APITimeoutError / RateLimit / 5xx; `BUILDSHIP_TRANSIENT_RETRIES`, default 2) so network blips aren't counted as failed builds (fixes the `full [2/3]` noise from the last live run).
+- 4 new tests (`write_test` fence-strip, independent-gate wiring + false-positive catch).
+
+**Why:** the live alignment run showed the gate's value is bounded because self-test errors correlate with code errors (false positive on `adv_round_half_up`). An author-independent verifier breaks that correlation; this arm measures whether it helps.
+
+**Next (live, user's terminal):** `uv run -m buildship.eval ablation 3` now includes the `independent_gate` arm — expect it to beat `full`/`no_gate` on e2e by catching first-attempt duds the self-test admits. Cost: +1 LLM call per build on that arm. Also `uv run -m buildship.eval alignment 3` for averaged confusion-matrix rates.
+
 ### 2026-06-08 — Eval rigor: gate-alignment metric + adversarial tasks (subagent build)
 
 **Done (built via a subagent workflow; all offline-verified — 61 tests green, BENCHMARK now 18 tasks):**

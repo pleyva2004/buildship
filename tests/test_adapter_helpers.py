@@ -168,3 +168,18 @@ def test_write_tool_raises_after_exhausting_retries(monkeypatch):
     with _pytest.raises(ValueError):
         llm.write_tool("task", "research", "", [])
     assert comp.calls == 3            # respects BUILDSHIP_CODEGEN_JSON_RETRIES default
+
+
+def test_write_test_strips_markdown_fence(monkeypatch):
+    monkeypatch.setenv("NEBIUS_API_KEY", "test-key")
+    from buildship.adapters import NebiusLLMClient
+
+    llm = NebiusLLMClient()
+    client, comp = _fake_client(["```python\nassert True\nprint('SELF_TEST_OK')\n```"])
+    llm._client = client
+
+    out = llm.write_test("some task spec")
+    assert "```" not in out
+    assert "SELF_TEST_OK" in out
+    assert comp.calls == 1
+    assert llm.total_tokens == 7

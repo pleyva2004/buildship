@@ -24,6 +24,19 @@ from buildship.eval.tasks import BENCHMARK, EvalTask
 
 _OUTCOME = re.compile(r"^\[(\w+)\]")
 
+# Transient API failures (network blips, timeouts, 5xx, rate limits) are retried so a
+# flaky call isn't counted as a failed tool build, which would pollute the metrics.
+_TRANSIENT_RETRIES = int(os.environ.get("BUILDSHIP_TRANSIENT_RETRIES", "2"))
+_TRANSIENT_ERRORS = {
+    "APIConnectionError", "APITimeoutError", "RateLimitError", "InternalServerError",
+    "APIError", "ConnectionError", "Timeout", "ReadTimeout", "ConnectError",
+    "ProxyError", "MaxRetryError",
+}
+
+
+def _is_transient(exc: BaseException) -> bool:
+    return bool({c.__name__ for c in type(exc).__mro__} & _TRANSIENT_ERRORS)
+
 
 class NoOpAction:
     """Action stub for eval — the verifier exercises the built tool directly."""
@@ -42,6 +55,9 @@ class _CountingLLM:
     def write_tool(self, *args: Any, **kwargs: Any):
         self.calls += 1
         return self.inner.write_tool(*args, **kwargs)
+
+    def write_test(self, *args: Any, **kwargs: Any):
+        return self.inner.write_test(*args, **kwargs)
 
     @property
     def total_tokens(self) -> int:
@@ -111,15 +127,17 @@ class Arm:
     gate: bool = True
     max_attempts: int = 3
     feedback_mode: str = "full"
+    independent_gate: bool = False
 
 
 # The pre-registered ablation arms (stages.md Stage 2): full vs no-gate vs
-# bounded-1 vs no-rejected-buffer.
+# bounded-1 vs no-rejected-buffer vs independent-verifier gate.
 ABLATION_ARMS = [
-    Arm("full"),                                # gate on, 3 attempts, full feedback
-    Arm("no_gate", gate=False),                 # admit first codegen regardless of self-test
-    Arm("budget_1", max_attempts=1),            # build-or-fail-fast (no self-correction)
-    Arm("no_feedback", feedback_mode="none"),   # retries start from scratch
+    Arm("full"),                                  # gate on, 3 attempts, full feedback
+    Arm("no_gate", gate=False),                   # admit first codegen regardless of self-test
+    Arm("budget_1", max_attempts=1),              # build-or-fail-fast (no self-correction)
+    Arm("no_feedback", feedback_mode="none"),     # retries start from scratch
+    Arm("independent_gate", independent_gate=True),  # gate on an author-INDEPENDENT test
 ]
 
 
@@ -153,21 +171,33 @@ def run_eval(
     counting = _CountingLLM(llm)
     if registry is None:
         registry = ToolRegistry(os.path.join(tempfile.mkdtemp(), "eval_library.json"))
+    # On the independent-gate arm, the gate's test is written by a SEPARATE model call
+    # that never sees the implementation (not the code author's own self-test).
+    independent_verifier = (
+        (lambda t, c: counting.write_test(t, c)) if arm.independent_gate else None
+    )
     harness = Harness(
         llm=counting, sandbox=sandbox, searcher=searcher,
         action=action or NoOpAction(), registry=registry,
         gate=arm.gate, max_attempts=arm.max_attempts, feedback_mode=arm.feedback_mode,
+        independent_verifier=independent_verifier,
     )
 
     results: list[TaskResult] = []
     for task in tasks:
-        before_calls, before_tokens = counting.calls, counting.total_tokens
-        try:
-            res = harness.run(task.task, task.needed_tool)
-            match = _OUTCOME.match(res)
-            outcome = match.group(1) if match else "unknown"
-        except Exception as exc:  # noqa: BLE001
-            outcome, res = "error", repr(exc)
+        outcome, res = "error", ""
+        for t_try in range(_TRANSIENT_RETRIES + 1):
+            before_calls, before_tokens = counting.calls, counting.total_tokens
+            try:
+                res = harness.run(task.task, task.needed_tool)
+                match = _OUTCOME.match(res)
+                outcome = match.group(1) if match else "unknown"
+                break
+            except Exception as exc:  # noqa: BLE001
+                if _is_transient(exc) and t_try < _TRANSIENT_RETRIES:
+                    continue
+                outcome, res = "error", repr(exc)
+                break
 
         e2e_ok, detail = False, res
         # Capture BOTH signals: the gate's (self-test status, preserved even when the

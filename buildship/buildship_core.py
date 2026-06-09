@@ -231,6 +231,7 @@ class Harness:
         gate: bool = True,
         max_attempts: int = 3,
         feedback_mode: str = "full",
+        independent_verifier: Callable[[str, "ToolContract"], str] | None = None,
     ):
         self.llm = llm
         self.sandbox = sandbox
@@ -241,9 +242,13 @@ class Harness:
         #   gate=False        admit the first codegen regardless of its self-test
         #   max_attempts=N    bounded edit budget (1 == build-or-fail-fast)
         #   feedback_mode     "full" | "traceback" | "none" (rejected-buffer ablation)
+        #   independent_verifier(task, contract) -> test source: when set, the gate runs
+        #     the tool's code against THIS independently-written test instead of the
+        #     model's own self-test (tests whether an author-independent verifier helps).
         self.gate = gate
         self.max_attempts = max_attempts
         self.feedback_mode = feedback_mode
+        self.independent_verifier = independent_verifier
 
     def run(self, task: str, needed_tool: str) -> str:
         log = TrajectoryLogger()
@@ -270,7 +275,16 @@ class Harness:
             contract = self.llm.write_tool(task, research, feedback, self.registry.list_names())
             log.log("codegen", attempt=budget.attempts, name=contract.name)
 
-            passed, output = self.sandbox.run(contract.source())
+            # The gate signal: the model's own self-test, OR — when configured — an
+            # independently-written test that never saw this implementation.
+            if self.independent_verifier is not None:
+                gate_source = (
+                    f"{contract.code}\n\n# --- independent test ---\n"
+                    f"{self.independent_verifier(task, contract)}\n"
+                )
+            else:
+                gate_source = contract.source()
+            passed, output = self.sandbox.run(gate_source)
             verification = VerificationRecord(
                 status="passed" if passed else "failed",
                 attempts=budget.attempts,

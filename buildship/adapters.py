@@ -92,6 +92,16 @@ def _align_tool_name(declared: str, code: str) -> str:
     return declared
 
 
+def _strip_code_fence(text: str) -> str:
+    """Strip a leading ```python / ``` fence and trailing ``` from model output."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[1] if "\n" in t else ""
+        if t.rstrip().endswith("```"):
+            t = t.rsplit("```", 1)[0]
+    return t.strip()
+
+
 # ===========================================================================
 # (5a) LLMClient — Nebius codegen via the OpenAI-compatible SDK
 # ===========================================================================
@@ -125,6 +135,15 @@ Hard rules (the tool is REJECTED unless ALL hold):
   3. Keep it small, deterministic, and dependency-light.
   4. If feedback describes a previous failure, FIX that specific error; do not repeat it.
 """
+
+
+_TEST_SYSTEM = """You write a Python SELF-TEST for a tool described ONLY by its task spec —
+you do NOT see any implementation. Output ONLY python code (no markdown fences, no prose).
+Your code is appended AFTER the (unseen) function definition in the same module, so call the
+function by the EXACT name in the task's signature. Build canonical inputs from the task's
+stated examples and spec, assert the function returns the correct outputs (cover the edge
+cases the spec implies), and print exactly "SELF_TEST_OK" on success. Assert ONLY what the
+spec dictates."""
 
 
 class NebiusLLMClient:
@@ -205,6 +224,26 @@ class NebiusLLMClient:
         raise ValueError(
             f"codegen did not return valid JSON after {self._json_retries} attempts: {last_error}"
         )
+
+    def write_test(self, task: str, contract: "ToolContract | None" = None) -> str:
+        """Write a SELF-TEST for the task spec WITHOUT seeing the implementation —
+        an author-independent gate signal. Returns python that calls the function by
+        the name in the task signature, asserts the spec, and prints SELF_TEST_OK.
+        `contract` is accepted for signature compatibility but deliberately NOT shown
+        to the model (that's what makes the verifier independent)."""
+        response = self._client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": _TEST_SYSTEM},
+                {"role": "user", "content": f"TASK:\n{task}\n\nWrite the self-test now."},
+            ],
+            temperature=self.temperature,
+            max_tokens=self._max_tokens,
+        )
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            self.total_tokens += int(getattr(usage, "total_tokens", 0) or 0)
+        return _strip_code_fence(response.choices[0].message.content or "")
 
     @staticmethod
     def _build_prompt(

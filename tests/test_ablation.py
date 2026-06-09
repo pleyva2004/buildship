@@ -140,3 +140,59 @@ def test_run_eval_ungated_arm_verifies_even_when_selftest_fails():
     )
     assert rep.build_success_rate == 1.0     # ungated admits on attempt 1
     assert rep.e2e_success_rate == 1.0       # but the verifier is the real judge
+
+
+# ---- independent-verifier gate ----
+class _RecordingSandbox:
+    def __init__(self, results):
+        self._r = list(results)
+        self.sources = []
+
+    def run(self, source):
+        self.sources.append(source)
+        return self._r.pop(0)
+
+
+def test_independent_gate_runs_independent_test_not_self_test():
+    contract = ToolContract("make_bar_chart", "def make_bar_chart(d, p):", "doc",
+                            TRIVIAL, 'print("SELF_MARK")\n', [])
+    rec = _RecordingSandbox([(True, "ok")])
+    h = _harness(_LLM([contract]), rec,
+                 independent_verifier=lambda task, c: 'print("INDEP_MARK")')
+    h.run("plot a chart", "bar_chart_png")
+    src = rec.sources[0]
+    assert "INDEP_MARK" in src          # gate ran the independent test
+    assert "SELF_MARK" not in src       # not the author's self-test
+
+
+def test_independent_gate_catches_a_false_positive_the_self_test_misses():
+    """The killer case: buggy code + a weak self-test (passes) — the self-test gate
+    admits it, but an independent test catches the bug and the gate rejects."""
+    from buildship.adapters import LocalSandbox
+
+    buggy = "def round_half_up(value, decimals):\n    m = 10 ** decimals\n    return round(value * m) / m\n"
+    weak_selftest = 'assert round_half_up(2.0, 0) == 2.0\nprint("SELF_TEST_OK")\n'   # passes on buggy code
+    strong_test = 'assert round_half_up(1.005, 2) == 1.01\nprint("SELF_TEST_OK")\n'  # fails on buggy code
+
+    class LLM2:
+        def __init__(self):
+            self.calls = 0
+
+        def write_tool(self, task, research, feedback, current_tools):
+            self.calls += 1
+            return ToolContract("round_half_up", "def round_half_up(value, decimals):",
+                                "round half up", buggy, weak_selftest, [])
+
+        def write_test(self, task, contract=None):
+            return strong_test
+
+    def harness(independent, lib):
+        return Harness(llm=LLM2(), sandbox=LocalSandbox(), searcher=_Searcher(),
+                       action=_Action(), registry=ToolRegistry(lib),
+                       gate=True, max_attempts=1,
+                       independent_verifier=(lambda t, c: strong_test) if independent else None)
+
+    # self-test gate: the weak self-test passes -> the broken tool is admitted (false positive)
+    assert harness(False, "lib_fp_a.json").run("round half up", "round_half_up").startswith("[built]")
+    # independent gate (fresh library): the independent test fails -> the broken tool is rejected
+    assert harness(True, "lib_fp_b.json").run("round half up", "round_half_up").startswith("[exhausted_budget]")
