@@ -91,6 +91,8 @@ buildship/
 
 **Next (live, user's terminal):** `uv run -m buildship.eval ablation 3` now includes the `independent_gate` arm — expect it to beat `full`/`no_gate` on e2e by catching first-attempt duds the self-test admits. Cost: +1 LLM call per build on that arm. Also `uv run -m buildship.eval alignment 3` for averaged confusion-matrix rates.
 
+**LIVE RESULT (5-arm × 3-seed, refuted the prediction — see [`FINDINGS.md`](./FINDINGS.md)):** e2e — `no_gate` 0.944 = `no_feedback` 0.944 > `full` 0.907 > `budget_1` 0.870 ≫ `independent_gate` **0.537** (at 3× tokens). **Gating never beat ungated.** The independent verifier was *worst*: an LLM-written test (self OR independent) is an unreliable gate — self-tests admit duds (`round_half_up` false positive), independent tests reject correct tools (false negatives). The honest Stage-2 result: self-extension reliability is bottlenecked by the verifier being LLM-generated; a trustworthy gate needs a non-model signal (property check / execution oracle / spec / human). Full writeup + caveats + next experiments in `FINDINGS.md`.
+
 ### 2026-06-08 — Eval rigor: gate-alignment metric + adversarial tasks (subagent build)
 
 **Done (built via a subagent workflow; all offline-verified — 61 tests green, BENCHMARK now 18 tasks):**
