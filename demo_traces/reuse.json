@@ -1,0 +1,10 @@
+{
+  "run_id": "demo_reuse",
+  "task": "Implement `def make_bar_chart(data: dict, out_path: str) -> str` that saves a bar chart PNG of the dict to out_path with matplotlib (Agg backend) and returns out_path.",
+  "outcome": "reused",
+  "events": [
+    {"t": 1.0, "kind": "task", "task": "Implement make_bar_chart …", "needed_tool": "make_bar_chart"},
+    {"t": 1.0, "kind": "reuse", "tool": "make_bar_chart"},
+    {"t": 1.1, "kind": "action", "result": "action=SLACK_SENDS_A_MESSAGE_TO_A_CHANNEL successful=True artifact=artifacts/make_bar_chart.png"}
+  ]
+}

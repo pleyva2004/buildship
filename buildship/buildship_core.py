@@ -263,6 +263,7 @@ class Harness:
         if self.registry.has(needed_tool):
             log.log("reuse", tool=needed_tool)
             result = self.action.execute(needed_tool, self.registry.callable(needed_tool))
+            log.log("action", result=str(result)[:200])
             return self._finish(log, task, "reused", result)
 
         # Gap detected -> research once.
@@ -308,6 +309,7 @@ class Harness:
                 result = self.action.execute(
                     needed_tool, self.registry.callable(needed_tool)
                 )
+                log.log("action", result=str(result)[:200])
                 return self._finish(log, task, "built", result)
 
             # Failed -> buffer as negative feedback, retry per feedback_mode.
