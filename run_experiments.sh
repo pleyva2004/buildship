@@ -14,6 +14,13 @@ PY="${PY:-/opt/homebrew/opt/python@3.12/bin/python3.12}"
 run_once() {
   echo "===== run @ $(date -u +%FT%TZ) ====="
 
+  echo "== preflight: DNS/network to Nebius + Tavily =="
+  if ! uv run --python "$PY" python -c "import socket; [socket.getaddrinfo(h, 443) for h in ('api.studio.nebius.ai', 'api.tavily.com')]" 2>/dev/null; then
+    echo "!! No network/DNS to Nebius/Tavily — connect to the internet and re-run (the last run died here: socket.gaierror)." >&2
+    return 1
+  fi
+  echo "   network OK"
+
   echo "== offline tests =="
   uv run --python "$PY" -m pytest -q 2>&1 | tee tests.out
 
