@@ -80,6 +80,12 @@ buildship/
 
 > Keep this current. New sessions: read this section first for immediate context, and update it as work lands.
 
+### 2026-06-09 — Demo pivot (Stage 1): terminal trace presenter + Vercel iPhone viewer
+
+**Pivoted from the eval/paper work to the demo. Done (offline-verified — 69 tests green):**
+- **`demo_trace.py`** — terminal trace presenter that renders a run trajectory as a narrative, spotlighting the two money beats: **SELF-DEBUG** (fail → traceback fed back → fix → pass) and **REUSE** (capability served from the library, 0 new builds). Modes: `<path>` / `--latest` / `--demo`. `demo_traces/{self_debug,reuse}.json` are recorded fixtures = reliable demo content + fallback. Core now logs an `action` event (built + reuse paths) so the trace shows the real-action beat.
+- **`web/`** — phone-first **static** viewer (HTML/JS, no build step) that renders a trajectory as the same styled TUI with a stepped reveal; bundles the recorded traces and has a "＋ trace.json" loader for fresh runs. **Deploy to Vercel** (import the repo, Root Directory = `web`, Framework = Other) → `*.vercel.app` URL → open on iPhone. See `web/README.md`. Static-recorded by design (the harness doesn't fit serverless; load a real `trajectories/*.json` for a fresh run).
+
 ### 2026-06-09 — Oracle-gate arm (trustworthy-verifier ceiling) + chain-reaction demo
 
 **Done (offline-verified — 65 tests green; built two-in-parallel via subagents):**
