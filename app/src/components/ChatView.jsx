@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import ListingCards from './ListingCards.jsx'
 
 // Act 2 — the conversation column. Messages may carry an inline card payload
-// (action.recommend) so discovery happens INSIDE the conversation.
-export default function ChatView({ messages, profileId, thinking, onSend, onGenerate }) {
+// (action.recommend) so discovery happens INSIDE the conversation. Design 08
+// (03): extracted facts surface as "saved to memory" chips that mirror the
+// fact animating into the rail.
+export default function ChatView({ messages, profileId, thinking, rankOrder, onSend, onOpenListing, onGenerate }) {
   const [draft, setDraft] = useState('')
   const endRef = useRef(null)
 
@@ -17,10 +19,19 @@ export default function ChatView({ messages, profileId, thinking, onSend, onGene
         {messages.map((m, i) => (
           <div key={i}>
             <div className={`bubble ${m.role}`}>{m.text}</div>
+            {m.newFacts?.length > 0 && (
+              <div className="saved-facts">
+                {m.newFacts.map((f) => (
+                  <span className="saved-fact" key={f.text}>✓ Saved to memory — {f.text}</span>
+                ))}
+              </div>
+            )}
             {m.action?.type === 'recommend' && (
               <ListingCards
                 listingIds={m.action.listing_ids}
                 profileId={profileId}
+                rankOrder={rankOrder}
+                onOpen={onOpenListing}
                 onGenerate={onGenerate}
               />
             )}
