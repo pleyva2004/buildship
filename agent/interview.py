@@ -34,6 +34,15 @@ TRAITS = [
 
 MUST_LABELS = {"yard": "real yard", "bright": "bright interiors", "walkable": "walkable"}
 
+# "I'm done" detection — a warm interviewer respects "we're good". On a done
+# signal: one final catch-all if it hasn't been asked, otherwise end now.
+# Mirrored in app/src/mock/interview.js DONE_RE — keep in lockstep.
+DONE_RE = re.compile(
+    r"\b(i'?m (all )?done|that'?s (all|everything|enough|it)|nothing else"
+    r"|no,? (that'?s|we'?re) (it|good|all)|we'?re good|wrap (it )?up|let'?s see (the )?homes)\b",
+    re.I,
+)
+
 
 def _listings() -> list[dict]:
     index = json.loads((config.ASSETS_DIR / "listings" / "index.json").read_text())
@@ -294,6 +303,17 @@ def _profile_delta_mock(question_id: str, answer: str) -> dict:
     return {"palette_add": ["#E9E4DB"], "aesthetic": None}
 
 
+def _apply_done_signal(nxt: dict | None, answers_after: list[dict], answer: str) -> dict | None:
+    """'That's all / I'm done' skips ahead: straight to the catch-all if it
+    hasn't been asked, otherwise end immediately."""
+    if not DONE_RE.search(answer):
+        return nxt
+    asked_ids = {a.get("questionId") for a in answers_after}
+    if "q_anything" in asked_ids or "final.anything_else" in asked_ids:
+        return None
+    return _question_payload("q_anything", min(len(answers_after) + 1, INTERVIEW_LENGTH))
+
+
 def _record_mock(answers: list[dict], question_id: str, answer: str) -> dict:
     fx = _effects(question_id, answer)
     all_answers = answers + [{"questionId": question_id, "answer": answer}]
@@ -302,7 +322,7 @@ def _record_mock(answers: list[dict], question_id: str, answer: str) -> dict:
         "new_facts": fx["facts"],
         "profile_delta": _profile_delta_mock(question_id, answer),
         "ranked": rank_listings(weights, must),
-        "next": _next_mock(all_answers),
+        "next": _apply_done_signal(_next_mock(all_answers), all_answers, answer),
     }
 
 
@@ -331,6 +351,8 @@ THE FINAL QUESTION is always the open catch-all, in your own warm words: what el
 they want out of this home — activities they love, things they want nearby, any other \
 consideration. Give it id "final.anything_else". Ask it when one slot remains in the \
 budget, or sooner if coverage feels complete.
+If the client signals they're done ("that's all", "I'm done", "let's see homes"), \
+respect it: go straight to the catch-all, or return null if it's been asked.
 
 SCORING — candidate homes are ranked by trait weights. Allowed traits (use ONLY these):
 {traits}
@@ -458,6 +480,8 @@ def _record_live(profile_id: str, answers: list[dict], question_id: str, answer:
             sess["must"].append(t)
 
     nxt = _enforce_catchall(plan["next_question"], answers, question_id)
+    all_answers = answers + [{"questionId": question_id, "answer": answer}]
+    nxt = _apply_done_signal(nxt, all_answers, answer)
 
     delta = plan["profile_delta"] or {}
     palette = [h for h in (delta.get("palette_add") or [])

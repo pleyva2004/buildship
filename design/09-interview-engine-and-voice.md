@@ -249,6 +249,12 @@ re-rank, and an adaptive follow-up about the yard appear. Questions silent, on s
 - **Fresh entry** — "Things changed — let's catch up" resets session answers and the
   server's interview accumulators (memories persist); re-running the interview no
   longer resumes into a finished state.
+- **Three ways to end** (Jake: "does it have no way of ending?"): (1) natural — budget
+  cap (6) or planner-decided coverage, always via the catch-all; (2) conversational —
+  "that's all / I'm done / let's see homes" (`DONE_RE`, mirrored in both twins +
+  planner instruction) jumps to the catch-all or ends if it's been asked; (3) explicit —
+  an "I'm done — build my profile →" button (≥2 answers) goes straight to the passport.
+  "Skip for now" remains the abandon path (chat, no passport).
 
 Steps 1–2 are one work session; nothing in them is throwaway for v3 (the WS layer
 wraps the same engine events).

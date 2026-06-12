@@ -91,3 +91,22 @@ def test_rank_unmet_must_sinks_and_ties_break_by_price():
 def test_rank_with_no_answers_is_price_ascending():
     ranked = interview.rank_listings({}, [])
     assert [r["listing_id"] for r in ranked] == ["alt4", "alt1", "alt3", "alt2", "hero"]
+
+
+def test_done_signal_jumps_to_catchall():
+    res = interview.record_answer("test", [{"questionId": "q_who", "answer": "Just me"}],
+                                  "q_saturday", "Quiet mornings — that's everything, honestly")
+    assert res["next"]["id"] == "q_anything"
+
+
+def test_done_signal_after_catchall_ends():
+    prior = [{"questionId": "q_who", "answer": "Just me"},
+             {"questionId": "q_saturday", "answer": "that's all really"}]
+    res = interview.record_answer("test", prior, "q_anything", "Nothing else, we're good")
+    assert res["next"] is None
+
+
+def test_done_regex_does_not_false_positive_on_chips():
+    for chip in ["No dark interiors", "Just me", "Out all day, home to recharge",
+                 "Quick trips + a real yard", "Bright & airy"]:
+        assert not interview.DONE_RE.search(chip), chip

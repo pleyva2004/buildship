@@ -703,3 +703,5 @@ button {
   padding: 3px 9px; border-radius: 999px; background: var(--sand-deep); color: var(--ink-soft);
 }
 .iv-brain.live { background: var(--moss); color: #fff; }
+.iv-wrap { color: var(--clay-deep); font-weight: 600; }
+.iv-wrap:hover { color: var(--clay); }

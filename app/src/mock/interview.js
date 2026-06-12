@@ -257,6 +257,22 @@ export function buildSpec(profileId, answers) {
   }
 }
 
+// "I'm done" detection — mirrors agent/interview.py DONE_RE; keep in lockstep.
+const DONE_RE = new RegExp(
+  "\\b(i'?m (all )?done|that'?s (all|everything|enough|it)|nothing else" +
+  "|no,? (that'?s|we'?re) (it|good|all)|we'?re good|wrap (it )?up|let'?s see (the )?homes)\\b", 'i')
+
+function applyDoneSignal(next, allAnswers, answer) {
+  if (!DONE_RE.test(answer)) return next
+  const asked = new Set(allAnswers.map((a) => a.questionId))
+  if (asked.has('q_anything') || asked.has('final.anything_else')) return null
+  const q = QUESTIONS.q_anything
+  return {
+    id: 'q_anything', ...pick(q),
+    asked: Math.min(allAnswers.length + 1, INTERVIEW_LENGTH), total: INTERVIEW_LENGTH,
+  }
+}
+
 export function recordAnswer(answers, questionId, answer) {
   const fx = QUESTIONS[questionId]?.effects(answer) ?? { facts: [] }
   const all = [...answers, { questionId, answer }]
@@ -264,6 +280,6 @@ export function recordAnswer(answers, questionId, answer) {
     new_facts: fx.facts,
     profile_delta: profileDelta(questionId, answer),
     ranked: rankListings(all),
-    next: nextQuestion(all),
+    next: applyDoneSignal(nextQuestion(all), all, answer),
   }
 }

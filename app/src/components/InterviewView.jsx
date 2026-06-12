@@ -212,6 +212,12 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
               <button className={mode === 'text' ? 'active' : ''} onClick={() => switchMode('text')}>Text</button>
             </div>
           )}
+          {/* explicit end: build the passport from what we have (≠ Skip, which abandons) */}
+          {answers.length >= 2 && phase !== 'done' && (
+            <button className="iv-skip iv-wrap" onClick={() => setPhase('done')}>
+              I'm done — build my profile →
+            </button>
+          )}
           <button className="iv-skip" onClick={() => onDone('skipped')}>Skip for now →</button>
         </div>
       </div>

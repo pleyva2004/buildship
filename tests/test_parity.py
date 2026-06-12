@@ -16,14 +16,21 @@ from agent import interview
 
 REPO = Path(__file__).resolve().parent.parent
 
-SEQ = [
-    ("q_who", "Me, my partner and our dog Daisy"),
-    ("q_dog", "Long daily walks and she needs a real yard"),
-    ("q_saturday", "Hosting friends for dinner"),
-    ("q_light", "Bright & airy"),
-    ("q_dealbreaker", "No dark interiors"),
-    ("q_anything", "I do pottery and love being near hiking trails"),
-]
+SEQS = {
+    "full-dog-path": [
+        ("q_who", "Me, my partner and our dog Daisy"),
+        ("q_dog", "Long daily walks and she needs a real yard"),
+        ("q_saturday", "Hosting friends for dinner"),
+        ("q_light", "Bright & airy"),
+        ("q_dealbreaker", "No dark interiors"),
+        ("q_anything", "I do pottery and love being near hiking trails"),
+    ],
+    "early-done-signal": [
+        ("q_who", "Just me"),
+        ("q_saturday", "Cooking long meals — that's everything, honestly"),
+        ("q_anything", "A spot for my records. Nothing else, we're good"),
+    ],
+}
 
 NODE_RUNNER = """
 import {{ nextQuestion, recordAnswer, buildSpec }} from '{module}'
@@ -40,11 +47,12 @@ console.log(JSON.stringify(out))
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
-def test_mock_twins_exact_parity(tmp_path):
+@pytest.mark.parametrize("seq", SEQS.values(), ids=SEQS.keys())
+def test_mock_twins_exact_parity(tmp_path, seq):
     runner = tmp_path / "runner.mjs"
     runner.write_text(NODE_RUNNER.format(
         module=REPO / "app/src/mock/interview.js",
-        seq=json.dumps([list(s) for s in SEQ]),
+        seq=json.dumps([list(s) for s in seq]),
     ))
     js = json.loads(subprocess.run(
         ["node", str(runner)], capture_output=True, text=True, check=True
@@ -52,7 +60,7 @@ def test_mock_twins_exact_parity(tmp_path):
 
     answers = []
     out = [interview.next_question("parity", answers)]
-    for qid, ans in SEQ:
+    for qid, ans in seq:
         out.append(interview.record_answer("parity", answers, qid, ans))
         answers.append({"questionId": qid, "answer": ans})
     out.append(interview.finish_profile("parity", answers))
