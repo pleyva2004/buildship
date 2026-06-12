@@ -26,7 +26,7 @@ SEQ = [
 ]
 
 NODE_RUNNER = """
-import {{ nextQuestion, recordAnswer }} from '{module}'
+import {{ nextQuestion, recordAnswer, buildSpec }} from '{module}'
 const seq = {seq}
 let answers = []
 const out = [nextQuestion(answers)]
@@ -34,6 +34,7 @@ for (const [qid, a] of seq) {{
   out.push(recordAnswer(answers, qid, a))
   answers.push({{ questionId: qid, answer: a }})
 }}
+out.push(buildSpec('parity', answers))
 console.log(JSON.stringify(out))
 """
 
@@ -54,6 +55,7 @@ def test_mock_twins_exact_parity(tmp_path):
     for qid, ans in SEQ:
         out.append(interview.record_answer("parity", answers, qid, ans))
         answers.append({"questionId": qid, "answer": ans})
+    out.append(interview.finish_profile("parity", answers))
     py = json.loads(json.dumps(out))
 
     assert js == py

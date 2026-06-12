@@ -74,3 +74,13 @@ def test_transcribe_accepts_audio_and_returns_text_key():
     r = client.post("/api/voice/transcribe", files={"audio": ("t.wav", _tone_wav(), "audio/wav")})
     assert r.status_code == 200
     assert "text" in r.json()  # a tone transcribes to "" — shape is the contract
+
+
+def test_interview_finish_returns_spec():
+    res = client.post("/api/interview/finish", json={
+        "profile_id": "guest_v1",
+        "answers": [{"questionId": "q_light", "answer": "Cozy & warm"}],
+    }).json()
+    spec = res["style_spec"]
+    assert spec["aesthetic_name"] == "warm & collected"
+    assert len(spec["palette_hex"]) >= 3

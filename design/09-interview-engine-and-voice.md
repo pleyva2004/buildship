@@ -220,7 +220,7 @@ re-rank, and an adaptive follow-up about the yard appear. Questions silent, on s
 | 1 | `agent/interview.py` engine + structured runs + mem0 writes + server rerank + mock twins + routes + `make interview` REPL | the brain, testable in terminal | ✅ shipped, parity-tested |
 | 2 | Voice v1: `POST /api/voice/transcribe` (faster-whisper) + MediaRecorder hold-to-speak in `InterviewView` + fallbacks | **the thing Jake wants to try** | ✅ shipped, human-verified |
 | 3 | Chat-agent memory tools (`save_memory`/`revise_memory`, §3.8) + `new_facts` in `/api/chat` | learning during property talk | ✅ shipped, live-tested |
-| 4 | `finish` → style_spec → passport confirm flow | closes design 02; the exit artifact | pending |
+| 4 | `finish` → style_spec → passport confirm flow | closes design 02; the exit artifact | ✅ shipped — passport reflects the conversation; spec returned, never persisted |
 | 5 | v2 streaming captions (only if wanted) | polish | pending |
 | 6 | v3 warm TTS voice-to-voice | the demo wow; only stage that touches paid voice | pending |
 
@@ -239,6 +239,16 @@ re-rank, and an adaptive follow-up about the yard appear. Questions silent, on s
   the topbar, for testing without preloaded persona data.
 - **Smoke tests** — `make test` (`tests/`): twin parity (node↔python), engine behavior,
   scorer invariants, every API route, transcribe contract. All mock, zero network.
+- **Catch-all enforced in code** (`_enforce_catchall`, unit-tested): planner stopping
+  early, overrunning the budget, or filling the final slot with another question all
+  resolve to the catch-all. Prompts instruct; code guarantees.
+- **Brain badge** — the interview topbar shows `live` / `scripted fallback` /
+  `offline · local mock` from `/api/health`, so a stale or mock backend can never
+  masquerade as the live agent (root cause of the "questions look hardcoded" report:
+  a stale pre-catch-all mock server was holding :8001).
+- **Fresh entry** — "Things changed — let's catch up" resets session answers and the
+  server's interview accumulators (memories persist); re-running the interview no
+  longer resumes into a finished state.
 
 Steps 1–2 are one work session; nothing in them is throwaway for v3 (the WS layer
 wraps the same engine events).

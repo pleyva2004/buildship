@@ -403,6 +403,37 @@ def _plan_live(profile_id: str, answers: list[dict], question_id: str, answer: s
     return plan
 
 
+def _enforce_catchall(nxt: dict | None, answers: list[dict], question_id: str) -> dict | None:
+    """The catch-all can NEVER be skipped (Jake's requirement). The planner is
+    instructed, but instructions aren't guarantees — enforce in code:
+      - planner stops early           -> serve the catch-all
+      - planner overruns the budget   -> serve the catch-all (then end)
+      - final slot holds another q    -> replace it with the catch-all
+    Pure function so it's unit-testable without the LLM."""
+    asked_next = len(answers) + 2  # prior answers + this answer + the next question
+    asked_ids = {a.get("questionId", "") for a in answers} | {question_id}
+    catchall_done = any("anything" in (i or "") for i in asked_ids)
+    at_final_slot = asked_next == INTERVIEW_LENGTH
+    overrun = asked_next > INTERVIEW_LENGTH
+
+    if catchall_done and (overrun or nxt is None):
+        return None
+    if not catchall_done and (nxt is None or overrun or at_final_slot):
+        nxt = {"id": "final.anything_else", "prompt": SCRIPT["q_anything"]["prompt"],
+               "chips": SCRIPT["q_anything"]["chips"], "optional": True}
+        asked_next = min(asked_next, INTERVIEW_LENGTH)
+    if not nxt or not nxt.get("prompt"):
+        return None
+    return {
+        "id": nxt.get("id") or f"dyn.{asked_next}",
+        "prompt": nxt["prompt"],
+        "chips": (nxt.get("chips") or [])[:4],
+        "optional": bool(nxt.get("optional", False)),
+        "asked": asked_next,
+        "total": INTERVIEW_LENGTH,
+    }
+
+
 def _record_live(profile_id: str, answers: list[dict], question_id: str, answer: str,
                  memory: Mem0Client) -> dict:
     plan = _plan_live(profile_id, answers, question_id, answer, memory)
@@ -426,30 +457,7 @@ def _record_live(profile_id: str, answers: list[dict], question_id: str, answer:
         if t in TRAITS and t not in sess["must"]:
             sess["must"].append(t)
 
-    nxt = plan["next_question"]
-    asked_next = len(answers) + 2  # answers + this one + the next question
-    # The catch-all can never be skipped: if the planner wants to stop before
-    # it has been asked, serve the scripted one instead.
-    asked_ids = {a.get("questionId", "") for a in answers} | {question_id}
-    catchall_done = any("anything" in (i or "") for i in asked_ids)
-    if nxt is None and asked_next <= INTERVIEW_LENGTH and not catchall_done:
-        nxt = {
-            "id": "final.anything_else",
-            "prompt": SCRIPT["q_anything"]["prompt"],
-            "chips": SCRIPT["q_anything"]["chips"],
-            "optional": True,
-        }
-    if nxt and asked_next <= INTERVIEW_LENGTH and nxt.get("prompt"):
-        nxt = {
-            "id": nxt.get("id") or f"dyn.{asked_next}",
-            "prompt": nxt["prompt"],
-            "chips": (nxt.get("chips") or [])[:4],
-            "optional": bool(nxt.get("optional", False)),
-            "asked": asked_next,
-            "total": INTERVIEW_LENGTH,
-        }
-    else:
-        nxt = None
+    nxt = _enforce_catchall(plan["next_question"], answers, question_id)
 
     delta = plan["profile_delta"] or {}
     palette = [h for h in (delta.get("palette_add") or [])
@@ -465,6 +473,95 @@ def _record_live(profile_id: str, answers: list[dict], question_id: str, answer:
         "ranked": rank_listings(sess["weights"], sess["must"]),
         "next": nxt,
     }
+
+
+# ---------------------------------------------------------------------------
+# finish -> the style spec (design 09 §3.6, closes design 02). The passport is
+# the human face of this object — it must reflect THIS conversation.
+# ---------------------------------------------------------------------------
+
+HARD_CONSTRAINTS = ["preserve architecture", "preserve windows/doors",
+                    "preserve room geometry", "no people"]
+
+SPEC_PROMPT = """You are VISTA's taste distiller. From everything known about this \
+client, produce their locked style spec — the single object that will drive every \
+room restyle. Ground EVERY field in their actual words below; do not default to a \
+generic aesthetic.
+
+WHAT YOU KNOW (interview answers + remembered facts):
+{facts}
+
+Respond with ONLY a JSON object:
+{{
+  "aesthetic_name": "2-4 words, theirs, specific (e.g. 'sunlit japandi calm')",
+  "palette_hex": ["#......", 4-5 hexes derived from their stated light/material/mood taste],
+  "materials": ["3-5 materials they'd actually touch"],
+  "furniture_vocabulary": ["3-4 furniture phrases for restyle prompts"],
+  "lighting_mood": "one phrase, theirs"
+}}"""
+
+
+def _spec_mock(profile_id: str, answers: list[dict]) -> dict:
+    """Deterministic spec from the scripted answers — mirrors mock/interview.js
+    buildSpec. Varies with the light/mood answer so cold runs aren't identical."""
+    light = next((a.get("answer", "") for a in answers
+                  if a.get("questionId") in ("q_light",)), "").lower()
+    hosts = any(re.search(r"host|friends|dinner|guests", a.get("answer", "").lower())
+                for a in answers)
+    if re.search(r"bright|airy", light):
+        spec = {"aesthetic_name": "bright & airy modern",
+                "palette_hex": ["#F5F3EF", "#D9D2C7", "#A7B5A0", "#1C1C1C"],
+                "materials": ["pale oak", "linen", "ceramic"],
+                "lighting_mood": "bright, even daylight"}
+    elif re.search(r"cozy|warm", light):
+        spec = {"aesthetic_name": "warm & collected",
+                "palette_hex": ["#C8A27A", "#7A5C3E", "#2F3E46", "#E9E4DB"],
+                "materials": ["walnut", "wool", "brushed brass"],
+                "lighting_mood": "warm, golden hour"}
+    else:
+        spec = {"aesthetic_name": "balanced & natural",
+                "palette_hex": ["#E9E4DB", "#D9D2C7", "#A7B5A0", "#6F6557"],
+                "materials": ["oak", "linen", "stone"],
+                "lighting_mood": "soft natural light"}
+    spec["furniture_vocabulary"] = (["long gathering table"] if hosts else []) + ["low-profile sofa"]
+    return {"profile_id": profile_id, **spec, "hard_constraints": list(HARD_CONSTRAINTS)}
+
+
+def _spec_live(profile_id: str, answers: list[dict], memory: Mem0Client) -> dict:
+    known = [m["text"] for m in memory.all(profile_id)]
+    qa = [f"Q {a.get('questionId')}: A: {a.get('answer')}" for a in answers]
+    facts = "\n".join(f"  - {t}" for t in qa + known) or "  (nothing)"
+    raw = nebius.chat(
+        [{"role": "system", "content": SPEC_PROMPT.format(facts=facts)},
+         {"role": "user", "content": "Produce the locked style spec now."}],
+        temperature=0.5,
+    )
+    match = re.search(r"\{.*\}", raw, re.S)
+    spec = json.loads(match.group(0) if match else raw)
+    palette = [h for h in (spec.get("palette_hex") or [])
+               if isinstance(h, str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", h)][:5]
+    if not spec.get("aesthetic_name") or len(palette) < 3:
+        raise ValueError("spec missing aesthetic_name or a usable palette")
+    return {
+        "profile_id": profile_id,
+        "aesthetic_name": str(spec["aesthetic_name"]),
+        "palette_hex": palette,
+        "materials": [str(m) for m in (spec.get("materials") or [])][:5],
+        "furniture_vocabulary": [str(f) for f in (spec.get("furniture_vocabulary") or [])][:4],
+        "lighting_mood": str(spec.get("lighting_mood") or "soft natural light"),
+        "hard_constraints": list(HARD_CONSTRAINTS),  # never negotiable, never LLM-authored
+    }
+
+
+def finish_profile(profile_id: str, answers: list[dict], memory: Mem0Client | None = None) -> dict:
+    """The interview's exit artifact. NEVER writes /specs (frozen, CLAUDE.md §4) —
+    returning it to the UI is the passport; persisting is a deliberate human act."""
+    if config.backend("interview") == "live":
+        try:
+            return _spec_live(profile_id, answers, memory or Mem0Client())
+        except Exception as exc:
+            print(f"[interview] live spec failed ({exc}); falling back to scripted spec")
+    return _spec_mock(profile_id, answers)
 
 
 # ---------------------------------------------------------------------------

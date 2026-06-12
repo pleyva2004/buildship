@@ -38,8 +38,10 @@ export function applyNudges(spec, nudges) {
   return { ...spec, palette_hex, furniture_vocabulary }
 }
 
-export default function TasteProfileView({ profileId, nudges, onNudge, onContinue, onBack }) {
-  const base = SPECS[profileId]
+export default function TasteProfileView({ profileId, spec: specOverride, nudges, onNudge, onContinue, onBack }) {
+  // specOverride = the spec distilled from THIS session's interview (step 4);
+  // without one (returning user, no interview) the seeded SPECS entry stands.
+  const base = specOverride ?? SPECS[profileId]
   const spec = applyNudges(base, nudges)
   const nudged = nudges.warmth !== 0 || nudges.ornate !== 0 || nudges.light !== 0
 
@@ -50,7 +52,8 @@ export default function TasteProfileView({ profileId, nudges, onNudge, onContinu
         <div className="passport-label">Taste passport</div>
         <h1>{spec.aesthetic_name}</h1>
         <p className="provenance">
-          Built from your conversation + {base.provenance.mood_boards} mood boards
+          Built from your conversation
+          {(base.provenance?.mood_boards ?? 0) > 0 && ` + ${base.provenance.mood_boards} mood boards`}
           {nudged && ' · nudged by you'}
         </p>
 

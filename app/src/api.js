@@ -85,6 +85,23 @@ export function rankListings(answers) {
   return interviewMock.rankListings(answers)
 }
 
+export async function finishInterview(profileId, answers) {
+  try {
+    const data = await post('/api/interview/finish', { profile_id: profileId, answers })
+    return data.style_spec
+  } catch {
+    return interviewMock.buildSpec(profileId, answers)
+  }
+}
+
+export async function getHealth() {
+  try {
+    return await get('/api/health') // {llm, memory, model} — which brain is answering
+  } catch {
+    return null // no backend at all: the app runs on its local mock twin
+  }
+}
+
 // ---- voice (design 09 §5): hold-to-speak audio -> transcript -----------------
 // Local faster-whisper on the agent server. Returns null on ANY failure so the
 // caller can fall back to text mode — voice never dead-ends the interview.

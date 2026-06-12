@@ -10,9 +10,11 @@ import { applyNudges } from './TasteProfileView.jsx'
 
 const GROUPS = [
   { label: 'Life', match: (m) => m.category === 'life_situation' && !m.text.startsWith('Must-have') },
-  { label: 'Taste', match: (m) => m.category === 'taste' },
+  { label: 'Taste', match: (m) => ['taste', 'materials'].includes(m.category) },
   { label: 'Inspiration', match: (m) => m.category === 'mood_board' },
   { label: 'Must-haves', match: (m) => m.category === 'life_situation' && m.text.startsWith('Must-have') },
+  // open lane — anything off-taxonomy (category 'other' etc.) still shows
+  { label: 'More', match: (m) => !['life_situation', 'taste', 'materials', 'mood_board', 'constraint'].includes(m.category) },
   // 'constraint' is intentionally not rendered — render rules, not user context
 ]
 
@@ -26,8 +28,8 @@ const READINESS = [
   { label: 'a taste cue', has: (ms) => ms.some((m) => m.category === 'taste' || m.category === 'mood_board') },
 ]
 
-export default function MemoryRail({ profileId, memories, recalledIds, nudges, onEdit, onRemove, onConfirm, onOpenTaste }) {
-  const spec = applyNudges(SPECS[profileId], nudges ?? { warmth: 0, ornate: 0, light: 0 })
+export default function MemoryRail({ profileId, spec: specOverride, memories, recalledIds, nudges, onEdit, onRemove, onConfirm, onOpenTaste }) {
+  const spec = applyNudges(specOverride ?? SPECS[profileId], nudges ?? { warmth: 0, ornate: 0, light: 0 })
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
 

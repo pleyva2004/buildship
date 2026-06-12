@@ -236,6 +236,27 @@ export function profileDelta(questionId, answer) {
   return { palette_add: ['#E9E4DB'], aesthetic: null }
 }
 
+// Deterministic exit spec — mirrors agent/interview.py _spec_mock; keep in
+// lockstep. Varies with the light/mood answer so cold runs aren't identical.
+export function buildSpec(profileId, answers) {
+  const light = (answers.find((a) => a.questionId === 'q_light')?.answer ?? '').toLowerCase()
+  const hosts = answers.some((a) => /host|friends|dinner|guests/.test(a.answer.toLowerCase()))
+  let spec
+  if (/bright|airy/.test(light)) {
+    spec = { aesthetic_name: 'bright & airy modern', palette_hex: ['#F5F3EF', '#D9D2C7', '#A7B5A0', '#1C1C1C'], materials: ['pale oak', 'linen', 'ceramic'], lighting_mood: 'bright, even daylight' }
+  } else if (/cozy|warm/.test(light)) {
+    spec = { aesthetic_name: 'warm & collected', palette_hex: ['#C8A27A', '#7A5C3E', '#2F3E46', '#E9E4DB'], materials: ['walnut', 'wool', 'brushed brass'], lighting_mood: 'warm, golden hour' }
+  } else {
+    spec = { aesthetic_name: 'balanced & natural', palette_hex: ['#E9E4DB', '#D9D2C7', '#A7B5A0', '#6F6557'], materials: ['oak', 'linen', 'stone'], lighting_mood: 'soft natural light' }
+  }
+  spec.furniture_vocabulary = (hosts ? ['long gathering table'] : []).concat(['low-profile sofa'])
+  return {
+    profile_id: profileId,
+    ...spec,
+    hard_constraints: ['preserve architecture', 'preserve windows/doors', 'preserve room geometry', 'no people'],
+  }
+}
+
 export function recordAnswer(answers, questionId, answer) {
   const fx = QUESTIONS[questionId]?.effects(answer) ?? { facts: [] }
   const all = [...answers, { questionId, answer }]

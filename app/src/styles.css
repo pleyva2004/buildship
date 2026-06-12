@@ -698,3 +698,8 @@ button {
   padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line);
   background: var(--card); font-size: 11.5px; font-family: var(--sans);
 }
+.iv-brain {
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px; background: var(--sand-deep); color: var(--ink-soft);
+}
+.iv-brain.live { background: var(--moss); color: #fff; }

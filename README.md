@@ -83,6 +83,7 @@ flip Jake ⇄ Pablo in the top bar.
 |---|---|
 | `POST /api/interview/next` `{profile_id, answers}` | `{id, prompt, chips, optional, asked, total}` — next interview question |
 | `POST /api/interview/answer` `{profile_id, answers, question_id, answer}` | `{new_facts, ranked, next}` — facts (written to mem0 with provenance) + deterministic re-rank + next adaptive question |
+| `POST /api/interview/finish` `{profile_id, answers}` | `{style_spec}` — distilled from THIS conversation (live: LLM over facts; mock: deterministic); never writes the frozen `/specs` |
 | `POST /api/memory/{profile_id}/update` · `…/delete` | Memory hygiene (rail confirm/edit/remove → mem0) |
 | `POST /api/voice/transcribe` (multipart audio) | `{text}` — local faster-whisper STT, offline; any failure → client falls back to text mode |
 
@@ -120,4 +121,8 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | Interview engine (`agent/interview.py`: adaptive planner, mem0 writes, scorer, routes; always ends on the open catch-all question) | ✅ exact parity with `app/src/mock/interview.js` (tested) | ✅ tested end-to-end — adaptive questions, distilled fact tidbits → real mem0 with provenance |
 | Chat memory tools (`save_memory`/`revise_memory` — learns + revises during property talk) | mock returns `new_facts: []` (app twin extracts locally) | ✅ live-tested: revision + new fact + re-recommendation in one turn |
 | Guest profile (`guest_v1` — zero seeded memories, cold-start testing) | ✅ verified in browser | ✅ empty mem0 user |
-| Smoke tests (`make test`, 27 tests) | ✅ all passing | n/a — tests force mock |
+| `finish` → style_spec → dynamic taste passport (design 09 step 4) | ✅ deterministic, parity-tested | ✅ tested — spec genuinely derived from the conversation |
+| Smoke tests (`make test`, 36 tests) | ✅ all passing | n/a — tests force mock |
+
+> The interview topbar shows a **brain badge** (`live` / `scripted fallback` / `offline ·
+> local mock`) from `/api/health` — if questions ever look canned, check the badge first.

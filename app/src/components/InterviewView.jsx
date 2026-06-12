@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { nextQuestion, recordAnswer, transcribe } from '../api.js'
+import { getHealth, nextQuestion, recordAnswer, transcribe } from '../api.js'
 
 // 02 · Getting to Know You — design 08b. One screen, five phases:
 // intro → speaking → ask → (listening → transcribing, voice) → thinking → done.
@@ -42,6 +42,7 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
   const [palette, setPalette] = useState([])
   const [aesthetic, setAesthetic] = useState(null)
   const [micNote, setMicNote] = useState(null)
+  const [brain, setBrain] = useState(null) // 'live' | 'scripted' | 'offline' — which brain answers
   const recorder = useRef(null)
   const chunks = useRef([])
   const alive = useRef(true)
@@ -50,6 +51,14 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
   useEffect(() => {
     alive.current = true
     return () => { alive.current = false }
+  }, [])
+
+  // Surface WHICH brain is answering — a stale/mock backend must never be able
+  // to masquerade as the live agent (lesson learned the hard way).
+  useEffect(() => {
+    getHealth().then((h) => {
+      if (alive.current) setBrain(h === null ? 'offline' : h.llm === 'live' ? 'live' : 'scripted')
+    })
   }, [])
 
   const askQuestion = useCallback(async (q, chosenMode) => {
@@ -185,6 +194,12 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
     <div className="iv">
       <div className="iv-topbar">
         <span className="iv-title">Getting to know you</span>
+        {brain && brain !== 'live' && (
+          <span className="iv-brain" title="The adaptive agent isn't connected — answers follow the rehearsed script.">
+            {brain === 'offline' ? 'offline · local mock' : 'scripted fallback'}
+          </span>
+        )}
+        {brain === 'live' && <span className="iv-brain live">live</span>}
         <span className="iv-progress">
           {question && Array.from({ length: question.total }, (_, i) => (
             <i key={i} className={i < question.asked ? 'on' : ''} />

@@ -92,6 +92,13 @@ def interview_answer(req: InterviewAnswerRequest):
     )
 
 
+@app.post("/api/interview/finish")
+def interview_finish(req: InterviewNextRequest):
+    """The exit artifact: a style spec distilled from THIS conversation.
+    Returned, never persisted — /specs stays frozen (CLAUDE.md §4)."""
+    return {"style_spec": interview.finish_profile(req.profile_id, req.answers, memory)}
+
+
 # ---- voice v1 (design 09 §5): audio blob -> transcript ------------------------
 # Local faster-whisper — offline, zero keys, stage-wifi-proof. Lazy-loaded so the
 # server runs without the dep; the client treats any failure as "fall back to text".
