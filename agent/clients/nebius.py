@@ -24,6 +24,12 @@ def chat(messages: list[dict], temperature: float = 0.2, model: str | None = Non
     return _chat_mock(messages)
 
 
+def chat_mock(messages: list[dict]) -> str:
+    """Forced canned turn regardless of backend — core.py's stage fallback when
+    the live harness fails mid-conversation (design 07 §1)."""
+    return _chat_mock(messages)
+
+
 def _chat_live(messages: list[dict], temperature: float, model: str) -> str:
     if not config.NEBIUS_API_KEY:
         raise RuntimeError("NEBIUS_API_KEY not set")
@@ -53,6 +59,9 @@ def _chat_mock(messages: list[dict]) -> str:
     last_user = next(
         (m["content"].lower() for m in reversed(messages) if m["role"] == "user"), ""
     )
+    # match on what the client actually said, not the injected [context] block —
+    # recalled facts (e.g. "relocating to Austin") must not trigger keyword turns
+    last_user = last_user.rsplit("[client says]", 1)[-1]
     for turn in _TURNS["turns"]:
         if turn["keywords"] and all(kw in last_user for kw in turn["keywords"]):
             return turn["reply"]

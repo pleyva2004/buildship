@@ -1,9 +1,15 @@
 # VISTA — Engineer B targets (run from repo root)
 
-.PHONY: agent agent-live app seed seed-live serve serve-live deps
+.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live
 
-deps:             ## install backend deps (fastapi + uvicorn, that's all)
+deps:             ## install backend deps (fastapi, uvicorn, openai-agents)
 	python3 -m pip install -r requirements.txt
+
+listings:         ## B2 discovery -> assets/listings/index.draft.json (mock tavily, zero keys)
+	python3 -m agent.listings
+
+listings-live:    ## same, real Tavily search + extract (needs TAVILY_API_KEY in .env)
+	TAVILY_BACKEND=live python3 -m agent.listings
 
 serve:            ## agent API on :8001 (mock backends by default; docs at /docs)
 	python3 -m uvicorn agent.server:app --port 8001 --reload

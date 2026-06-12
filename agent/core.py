@@ -1,8 +1,12 @@
-"""AgentSession — the transport-agnostic agent brain (design 04).
+"""AgentSession — the transport-agnostic agent brain (designs 04, 07).
 
 No HTTP imports here, ever. The terminal REPL (loop.py) and the FastAPI bridge
-(server.py) are both thin shells over this class. One LLM call per turn:
-recall from mem0 -> inject context -> chat -> parse <action> tag.
+(server.py) are both thin shells over this class. Two paths per turn:
+
+  MOCK (default): recall -> inject context -> canned turn -> parse <action> tag
+  LIVE: recall -> inject context -> Agents SDK tool loop on Nebius (harness.py)
+
+A live failure on any turn degrades to the mock turn — the demo never stalls.
 """
 
 import json
@@ -69,6 +73,8 @@ class AgentSession:
         self.history: list[dict] = [
             {"role": "system", "content": SYSTEM_PROMPT.format(inventory=inventory)}
         ]
+        self._agent = None  # lazy-built SDK agent (live path only)
+        self._sdk_input: list = []  # SDK-shaped conversation (result.to_input_list())
 
     def turn(self, user_msg: str) -> dict:
         """-> {reply, action, recalled} — the exact shape the app consumes."""
@@ -79,12 +85,43 @@ class AgentSession:
             if m["category"] != "constraint"
         ][:4]
 
+        if config.backend("nebius") == "live":
+            try:
+                return self._turn_live(user_msg, recalled)
+            except Exception as exc:  # never stall the demo
+                print(f"[harness] live turn failed ({exc}); falling back to mock turn")
+        return self._turn_mock(user_msg, recalled)
+
+    # -- mock: canned keyword turns + <action> tags (the stage fallback) ----
+
+    def _turn_mock(self, user_msg: str, recalled: list[dict]) -> dict:
         self.history.append({"role": "user", "content": build_turn_message(user_msg, recalled)})
-        raw = nebius.chat(self.history)
-        reply, action = parse_action(raw)
-
-        if action is None and GENERATE_RE.search(user_msg):
-            action = {"type": "generate_tour", "listing_id": "hero"}
-
+        reply, action = parse_action(nebius.chat_mock(self.history))
+        action = action or self._backstop(user_msg)
         self.history.append({"role": "assistant", "content": reply})
         return {"reply": reply, "action": action, "recalled": recalled}
+
+    # -- live: Agents SDK tool loop on Nebius (design 07) -------------------
+
+    def _turn_live(self, user_msg: str, recalled: list[dict]) -> dict:
+        from agent import harness  # lazy: mock path never needs openai-agents
+        from agent.tools import TurnState
+
+        if self._agent is None:
+            self._agent = harness.build_agent(load_listings()["listings"])
+        state = TurnState(profile_id=self.profile_id, memory=self.memory, recalled=list(recalled))
+
+        msg = build_turn_message(user_msg, recalled)
+        reply, self._sdk_input = harness.run_turn(self._agent, state, self._sdk_input, msg)
+        action = state.action or self._backstop(user_msg)
+
+        # mirror into mock history so a mid-conversation fallback keeps context
+        self.history.append({"role": "user", "content": msg})
+        self.history.append({"role": "assistant", "content": reply})
+        return {"reply": reply, "action": action, "recalled": state.recalled}
+
+    @staticmethod
+    def _backstop(user_msg: str) -> dict | None:
+        if GENERATE_RE.search(user_msg):
+            return {"type": "generate_tour", "listing_id": "hero"}
+        return None

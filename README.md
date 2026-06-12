@@ -8,10 +8,19 @@ definition in [CLAUDE.md](CLAUDE.md); design docs in [/design](design/00-overvie
 
 ```
 app (React/Vite) ──/api──► agent/server.py (FastAPI :8001) ──► agent/core.py (AgentSession)
-                               routes = pure translation           recall → prompt → LLM → action parse
-agent/loop.py (terminal REPL) ─────────────────────────────────────┤
-                                                       mem0_client │ nebius     ← each MOCK | LIVE
+                               routes = pure translation             │
+agent/loop.py (terminal REPL) ───────────────────────────────────────┤
+            ┌────────────────────────────────────────────────────────┴──┐
+            │ MOCK (default): canned turns + <action> parse              │
+            │ LIVE: OpenAI Agents SDK tool loop on Nebius (harness.py)   │
+            │   tools: recall_memories │ search_web_listings (Tavily)    │
+            │          recommend_listings │ generate_tour                │
+            └─ clients: nebius │ mem0_client │ tavily_client ← MOCK|LIVE ┘
 ```
+
+The live path is a real tool-calling harness (design 07): the model itself calls
+`recommend_listings` / `generate_tour` and the UI action comes out of the run context.
+Live failure on any turn degrades to the deterministic mock turn — the demo never stalls.
 
 Every external client (Nebius LLM, mem0, Tavily, Composio) is mock-first behind one
 interface, selected by `VISTA_BACKEND=mock|live` (per-client override: `NEBIUS_BACKEND`,
@@ -25,7 +34,7 @@ local mock (`app/src/mock/`) if the API is unreachable.
 # 1. Secrets (only needed for live mode)
 cp .env.example .env            # then fill in keys
 
-# 2. Backend deps — fastapi + uvicorn, that's all (clients are stdlib urllib)
+# 2. Backend deps — fastapi, uvicorn, openai-agents (clients stay stdlib urllib)
 make deps
 
 # 3. Frontend deps
@@ -44,6 +53,7 @@ cd app && npm install && cd ..
 | `make app` | React app on **:5173** (symlinks `/assets`, proxies `/api` → :8001) |
 | `make seed` | Flatten profiles → memories (mock, sanity check) |
 | `make seed-live` | Wipe + re-seed real mem0 with both profiles (idempotent) |
+| `make listings` / `listings-live` | B2 discovery → `index.draft.json` + photo URLs (never touches frozen `index.json`) |
 
 **Full live demo:** `make serve-live` in one terminal, `make app` in another, open
 http://localhost:5173. Script: type *"We're finally ready to look in Austin"* → *"what
@@ -86,7 +96,7 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 
 | Layer | Mock | Live |
 |---|---|---|
-| Nebius LLM (Llama 3.3 70B) | ✅ | ✅ tested |
+| Nebius LLM via Agents SDK harness (Llama 3.3 70B) | ✅ | ✅ tested — tools fire end-to-end |
 | mem0 (both profiles seeded) | ✅ | ✅ tested |
-| Tavily (listing discovery) | — | key in .env, client pending |
-| Composio (mood-board import) | — | key in .env, client pending |
+| Tavily (listing discovery + `search_web_listings` tool) | ✅ | ✅ search tested; extract blocked by portals → manual photos (sanctioned) |
+| Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |

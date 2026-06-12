@@ -1,3 +1,5 @@
-# Backend deps — kept deliberately minimal. Clients (Nebius/mem0) are stdlib urllib.
+# Backend deps — kept deliberately minimal. Clients (Nebius/mem0/Tavily) are stdlib urllib.
 fastapi>=0.115
 uvicorn>=0.32
+# Agent harness (design 07) — live path only; mock path stays stdlib.
+openai-agents>=0.2

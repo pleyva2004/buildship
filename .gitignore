@@ -31,3 +31,6 @@ assets/music/*.mp3
 # But always keep directory structure + originals
 !assets/listings/**/raw/**
 !**/.gitkeep
+
+# Tavily discovery drafts — regenerate with `make listings[-live]`
+assets/listings/index.draft.json

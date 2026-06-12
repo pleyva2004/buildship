@@ -1,0 +1,42 @@
+{
+  "_comment": "Canned Tavily responses (design 07 §3). Mirrors the three listings in assets/listings/index.json so mock discovery produces the same inventory we froze. URLs are realistic-but-fake placeholders; live mode replaces all of this.",
+  "search": [
+    {
+      "title": "Modern 4BR in Travis Heights — Austin, TX | $865,000",
+      "url": "https://www.example-mls.com/austin/travis-heights/1208-alta-vista",
+      "content": "4 bed 3 bath 2,410 sqft on a bright corner lot in Travis Heights. Big windows, open plan living, fenced yard, walkable to South Congress.",
+      "score": 0.97
+    },
+    {
+      "title": "Craftsman 3BR near Zilker Park — Austin, TX | $799,000",
+      "url": "https://www.example-mls.com/austin/zilker/904-kinney-ave",
+      "content": "3 bed 2 bath 1,980 sqft character craftsman near Zilker Park. Original wood detail throughout, darker interiors, excellent walk score.",
+      "score": 0.91
+    },
+    {
+      "title": "New build 4BR in Mueller — Austin, TX | $845,000",
+      "url": "https://www.example-mls.com/austin/mueller/2316-zach-scott",
+      "content": "4 bed 3 bath 2,300 sqft new construction in Mueller. Bright blank-canvas interiors, energy efficient, smaller yard.",
+      "score": 0.86
+    }
+  ],
+  "extract": {
+    "https://www.example-mls.com/austin/travis-heights/1208-alta-vista": {
+      "url": "https://www.example-mls.com/austin/travis-heights/1208-alta-vista",
+      "raw_content": "Modern 4BR in Travis Heights. $865,000. Austin, TX 78704. 4 beds, 3 baths, 2,410 sqft. Bright corner lot with oversized windows, open-plan living and kitchen, dedicated office with morning light, formal dining, fenced backyard. Walk to South Congress shops and restaurants.",
+      "images": [
+        "https://www.example-mls.com/photos/1208-alta-vista/exterior.jpg",
+        "https://www.example-mls.com/photos/1208-alta-vista/living.jpg",
+        "https://www.example-mls.com/photos/1208-alta-vista/kitchen.jpg",
+        "https://www.example-mls.com/photos/1208-alta-vista/primary_bed.jpg",
+        "https://www.example-mls.com/photos/1208-alta-vista/office.jpg",
+        "https://www.example-mls.com/photos/1208-alta-vista/dining.jpg"
+      ]
+    },
+    "default": {
+      "url": "",
+      "raw_content": "Listing page content unavailable in mock mode.",
+      "images": []
+    }
+  }
+}
