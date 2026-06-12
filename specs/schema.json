@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VISTA Style Spec",
+  "description": "The A<->B integration contract. Engineer B generates one locked spec per profile; Engineer A injects it VERBATIM into every room's restyle prompt. Frozen at H4, never changed after H8.",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "aesthetic_name",
+    "palette_hex",
+    "materials",
+    "furniture_vocabulary",
+    "lighting_mood",
+    "hard_constraints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "profile_id": { "type": "string", "description": "Matches the seeded mem0 profile id; used in asset filenames." },
+    "aesthetic_name": { "type": "string" },
+    "palette_hex": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+      "minItems": 3,
+      "maxItems": 6,
+      "description": "Inject every hex into every prompt — this is what enforces cross-room palette consistency."
+    },
+    "materials": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+    "furniture_vocabulary": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+    "lighting_mood": { "type": "string" },
+    "hard_constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Architecture-preservation rules. Always include preserve windows/doors/geometry + no people."
+    }
+  }
+}

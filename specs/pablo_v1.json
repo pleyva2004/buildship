@@ -1,0 +1,14 @@
+{
+  "profile_id": "pablo_v1",
+  "aesthetic_name": "warm mid-century modern",
+  "palette_hex": ["#C8A27A", "#2F3E46", "#E9E4DB", "#7A5C3E"],
+  "materials": ["walnut", "boucle", "brushed brass", "wool"],
+  "furniture_vocabulary": ["low-profile sofa", "slatted credenza", "arc floor lamp", "tapered-leg armchair"],
+  "lighting_mood": "warm, golden hour, soft shadows",
+  "hard_constraints": [
+    "preserve architecture",
+    "preserve windows/doors",
+    "preserve room geometry",
+    "no people"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "listings": [
+    {
+      "listing_id": "hero",
+      "title": "Modern 4BR in Travis Heights",
+      "price": "$865,000",
+      "location": "Austin, TX",
+      "beds": 4,
+      "baths": 3,
+      "sqft": 2410,
+      "summary": "Bright corner lot, big windows, open plan, fenced yard, walk to South Congress.",
+      "source_url": "",
+      "hero": true,
+      "rooms": ["living", "kitchen", "primary_bed", "office", "dining", "exterior"],
+      "card_photo": "assets/listings/hero/raw/hero__exterior.jpg",
+      "match_notes": {
+        "jake_v1": ["office gets full morning light", "walk to South Congress", "fenced yard for Daisy"],
+        "pablo_v1": ["original wood detailing", "big western light in the living room"]
+      }
+    },
+    {
+      "listing_id": "alt1",
+      "title": "Craftsman 3BR in Zilker",
+      "price": "$799,000",
+      "location": "Austin, TX",
+      "beds": 3,
+      "baths": 2,
+      "sqft": 1980,
+      "summary": "Character craftsman near Zilker Park; darker interiors, great walk score.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "match_notes": {
+        "jake_v1": ["great walk score", "darker interiors — trade-off"],
+        "pablo_v1": ["warm character throughout"]
+      }
+    },
+    {
+      "listing_id": "alt2",
+      "title": "New build 4BR in Mueller",
+      "price": "$845,000",
+      "location": "Austin, TX",
+      "beds": 4,
+      "baths": 3,
+      "sqft": 2300,
+      "summary": "New construction in Mueller; bright blank-canvas interiors, smaller yard.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "match_notes": {
+        "jake_v1": ["blank-canvas interiors", "yard is small for Daisy"],
+        "pablo_v1": ["lacks the character you love"]
+      }
+    }
+  ]
+}

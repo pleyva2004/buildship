@@ -1,0 +1,36 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.local
+
+# OS
+.DS_Store
+
+# Generated heavy assets — keep the tree, not the binaries.
+# (Comment these out the night of the demo so the cached tours travel with the repo.)
+assets/listings/**/restyled/**/*.png
+assets/listings/**/restyled/**/*.jpg
+assets/listings/**/video/**/*.mp4
+assets/**/*.mov
+assets/music/*.mp3
+
+# But always keep directory structure + originals
+!assets/listings/**/raw/**
+!**/.gitkeep
+
+# Tavily discovery drafts — regenerate with `make listings[-live]`
+assets/listings/index.draft.json
