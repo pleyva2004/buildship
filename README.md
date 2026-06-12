@@ -52,6 +52,8 @@ cd app && npm install && cd ..
 | `make serve-live` | Agent API, everything live |
 | `make app` | React app on **:5173** (symlinks `/assets`, proxies `/api` → :8001) |
 | `make interview` / `interview-live` | Terminal run of the getting-to-know-you interview (REPL) |
+| `make test` | Smoke tests (`tests/`) — twin parity, engine, scorer, all routes; mock, zero network |
+| `PROFILE=guest_v1 make agent` | Cold start — zero seeded memories (also a "Guest" button in the app) |
 | `make seed` | Flatten profiles → memories (mock, sanity check) |
 | `make seed-live` | Wipe + re-seed real mem0 with both profiles (idempotent) |
 | `make listings` / `listings-live` | B2 discovery → `index.draft.json` + photo URLs (never touches frozen `index.json`) |
@@ -68,7 +70,7 @@ flip Jake ⇄ Pablo in the top bar.
 
 | Endpoint | Returns |
 |---|---|
-| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled, new_facts}` — action drives the UI (recommend / generate_tour) |
+| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled, new_facts}` — action drives the UI; `new_facts` = memories the agent saved/revised this turn (`save_memory`/`revise_memory` tools) |
 | `GET /api/context/{profile_id}` | All memories (powers the memory rail) |
 | `GET /api/listings` | `assets/listings/index.json` passthrough |
 | `POST /api/reset/{profile_id}` | Fresh conversation (rehearsals); memories untouched |
@@ -94,7 +96,8 @@ app/              # React/Vite: one page, view states (welcome → [interview] �
 assets/listings/  # index.json + hero/{raw,restyled,video} per the filename convention
 pipeline/         # Engineer A: restyle + video + ffmpeg stitch (not yet built)
 specs/            # the frozen A↔B style-spec contract
-design/           # design docs 00–08 (read 00-overview first)
+design/           # design docs 00–09 (read 00-overview first)
+tests/            # smoke tests (`make test`) — all mock, zero network
 ```
 
 Each module has its own README: [agent/](agent/README.md) · [app/](app/README.md) ·
@@ -114,4 +117,7 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |
 | Design 08b interview experience (phases, voice\|text modes, orb, taste panel, passport) | ✅ Playwright-verified end-to-end | ✅ same UI; live engine answers |
 | Voice v1 — hold-to-speak → `/api/voice/transcribe` (local faster-whisper, offline) | n/a — needs the server | ✅ tested (synthesized speech word-perfect; warm transcribe ~0.4s; human-verified) |
-| Interview engine (`agent/interview.py`: adaptive planner, mem0 writes, scorer, routes) | ✅ exact parity with `app/src/mock/interview.js` (tested) | ✅ tested end-to-end — adaptive questions, facts → real mem0 with provenance |
+| Interview engine (`agent/interview.py`: adaptive planner, mem0 writes, scorer, routes; always ends on the open catch-all question) | ✅ exact parity with `app/src/mock/interview.js` (tested) | ✅ tested end-to-end — adaptive questions, distilled fact tidbits → real mem0 with provenance |
+| Chat memory tools (`save_memory`/`revise_memory` — learns + revises during property talk) | mock returns `new_facts: []` (app twin extracts locally) | ✅ live-tested: revision + new fact + re-recommendation in one turn |
+| Guest profile (`guest_v1` — zero seeded memories, cold-start testing) | ✅ verified in browser | ✅ empty mem0 user |
+| Smoke tests (`make test`, 27 tests) | ✅ all passing | n/a — tests force mock |

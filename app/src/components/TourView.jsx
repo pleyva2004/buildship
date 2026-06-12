@@ -7,7 +7,7 @@ import { rawPhoto, restyledPhoto, tourVideo, PLACEHOLDER } from '../assets.js'
 // before/after leads each room (the credibility proof); the video is offered
 // as "play the full tour." Per-room taste chips tie the magic to the rail;
 // compare-aesthetics is a deliberate split-screen, not a topbar toggle.
-const OTHER = { jake_v1: 'pablo_v1', pablo_v1: 'jake_v1' }
+const OTHER = { jake_v1: 'pablo_v1', pablo_v1: 'jake_v1', guest_v1: 'jake_v1' }
 
 export default function TourView({ profileId, onBack }) {
   const hero = LISTINGS.find((l) => l.hero)

@@ -215,14 +215,30 @@ re-rank, and an adaptive follow-up about the yard appear. Questions silent, on s
 
 ## 7. Build order
 
-| # | What | Proves |
-|---|---|---|
-| 1 | `agent/interview.py` engine + structured runs + mem0 writes + server rerank + mock twins + routes + `make interview` REPL | the brain, testable in terminal |
-| 2 | Voice v1: `POST /api/voice/transcribe` (faster-whisper) + MediaRecorder hold-to-speak in `InterviewView` + fallbacks | **the thing Jake wants to try** |
-| 3 | Chat-agent memory tools (`save_memory`/`revise_memory`, §3.8) + `new_facts` in `/api/chat` | learning during property talk |
-| 4 | `finish` → style_spec → passport confirm flow | closes design 02; the exit artifact |
-| 5 | v2 streaming captions (only if wanted) | polish |
-| 6 | v3 warm TTS voice-to-voice | the demo wow; only stage that touches paid voice |
+| # | What | Proves | Status |
+|---|---|---|---|
+| 1 | `agent/interview.py` engine + structured runs + mem0 writes + server rerank + mock twins + routes + `make interview` REPL | the brain, testable in terminal | ✅ shipped, parity-tested |
+| 2 | Voice v1: `POST /api/voice/transcribe` (faster-whisper) + MediaRecorder hold-to-speak in `InterviewView` + fallbacks | **the thing Jake wants to try** | ✅ shipped, human-verified |
+| 3 | Chat-agent memory tools (`save_memory`/`revise_memory`, §3.8) + `new_facts` in `/api/chat` | learning during property talk | ✅ shipped, live-tested |
+| 4 | `finish` → style_spec → passport confirm flow | closes design 02; the exit artifact | pending |
+| 5 | v2 streaming captions (only if wanted) | polish | pending |
+| 6 | v3 warm TTS voice-to-voice | the demo wow; only stage that touches paid voice | pending |
+
+**Amendments shipped with steps 1–3 (Jake, June 12):**
+- **The catch-all final question** — the interview ALWAYS ends with an open "what else
+  do you want out of your new home — activities, things nearby, anything at all"
+  (scripted `q_anything` in both twins, `final.anything_else` instruction + null-backstop
+  live). `INTERVIEW_LENGTH` is 6.
+- **Distilled tidbits** — live facts are ≤~10-word digestible tidbits, never raw-answer
+  echoes (mock twins keep templates; they're the deterministic fallback by design).
+- **Open category lane** — facts that fit no target section carry category `other` and
+  render under "Also worth knowing"; never forced into a bad fit, never dropped.
+- **Spacebar push-to-talk** — hold space to talk, release to send (guarded against key
+  repeat and typing in inputs); the mic button still works.
+- **Guest profile (`guest_v1`)** — cold start with zero seeded memories, selectable in
+  the topbar, for testing without preloaded persona data.
+- **Smoke tests** — `make test` (`tests/`): twin parity (node↔python), engine behavior,
+  scorer invariants, every API route, transcribe contract. All mock, zero network.
 
 Steps 1–2 are one work session; nothing in them is throwaway for v3 (the WS layer
 wraps the same engine events).

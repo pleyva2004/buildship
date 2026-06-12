@@ -99,7 +99,7 @@ class AgentSession:
         reply, action = parse_action(nebius.chat_mock(self.history))
         action = action or self._backstop(user_msg)
         self.history.append({"role": "assistant", "content": reply})
-        return {"reply": reply, "action": action, "recalled": recalled}
+        return {"reply": reply, "action": action, "recalled": recalled, "new_facts": []}
 
     # -- live: Agents SDK tool loop on Nebius (design 07) -------------------
 
@@ -118,7 +118,12 @@ class AgentSession:
         # mirror into mock history so a mid-conversation fallback keeps context
         self.history.append({"role": "user", "content": msg})
         self.history.append({"role": "assistant", "content": reply})
-        return {"reply": reply, "action": action, "recalled": state.recalled}
+        return {
+            "reply": reply,
+            "action": action,
+            "recalled": state.recalled,
+            "new_facts": state.new_facts,  # save_memory/revise_memory writes this turn
+        }
 
     @staticmethod
     def _backstop(user_msg: str) -> dict | None:

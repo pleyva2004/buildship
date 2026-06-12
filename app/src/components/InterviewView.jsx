@@ -154,6 +154,29 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
     setMode(m)
   }, [mode, phase])
 
+  // Spacebar = push-to-talk (hold to speak, release when done). Ignores key
+  // repeat and anything typed into an input, so text mode is unaffected.
+  useEffect(() => {
+    if (mode !== 'voice') return
+    const isTyping = (e) => ['INPUT', 'TEXTAREA'].includes(e.target.tagName)
+    const down = (e) => {
+      if (e.code !== 'Space' || e.repeat || isTyping(e)) return
+      e.preventDefault()
+      startListening()
+    }
+    const up = (e) => {
+      if (e.code !== 'Space' || isTyping(e)) return
+      e.preventDefault()
+      stopListening()
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [mode, startListening, stopListening])
+
   // ---- render ---------------------------------------------------------------
 
   const groups = [...TARGET_GROUPS, ...(facts.some((f) => f.group === OTHER_GROUP) ? [OTHER_GROUP] : [])]
@@ -225,7 +248,7 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
                   : 'Hold to speak'}
               </button>
               {micNote && <p className="iv-note">{micNote}</p>}
-              <p className="iv-hint">…or switch to Text up top, any time.</p>
+              <p className="iv-hint">Hold the <kbd>space</kbd> bar to talk — or switch to Text up top.</p>
             </div>
           )}
 

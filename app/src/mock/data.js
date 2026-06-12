@@ -23,12 +23,25 @@ export const SPECS = {
     lighting_mood: 'warm, golden hour, soft shadows',
     provenance: { conversations: 1, mood_boards: 2 },
   },
+  // Cold start — no seeded memories anywhere (mem0 mock seeds only jake/pablo).
+  // Everything VISTA knows about Guest comes from THIS session's interview/chat.
+  guest_v1: {
+    profile_id: 'guest_v1',
+    name: 'Guest',
+    aesthetic_name: 'still discovering',
+    palette_hex: ['#E8E1D5', '#D9D2C7', '#C8BFAF', '#6F6557'],
+    materials: [],
+    furniture_vocabulary: [],
+    lighting_mood: 'to be discovered',
+    provenance: { conversations: 0, mood_boards: 0 },
+  },
 }
 
 // Mirrors agent/clients/mem0_client.py flatten_profile() output.
 // provenance: 'stated' (user said it) | 'inferred' (model concluded it) |
 // 'imported' (came in via Composio) — design 08 §2 (03) honest-provenance mark.
 export const MEMORIES = {
+  guest_v1: [],
   jake_v1: [
     { id: 'j1', category: 'life_situation', provenance: 'stated', text: 'Jake: First-time buyer, relocating to Austin, works from home 3 days/week' },
     { id: 'j2', category: 'life_situation', provenance: 'stated', text: 'Household: couple, no kids, one dog (Daisy)' },

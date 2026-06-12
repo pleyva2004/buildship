@@ -39,7 +39,7 @@ export default function App() {
   const [thinking, setThinking] = useState(false)
   const [answers, setAnswers] = useState([]) // interview session state: [{questionId, answer}]
   const [rankOrder, setRankOrder] = useState(() => rankListings([]).map((r) => r.listing_id))
-  const [nudges, setNudges] = useState({ jake_v1: NO_NUDGES, pablo_v1: NO_NUDGES })
+  const [nudges, setNudges] = useState({ jake_v1: NO_NUDGES, pablo_v1: NO_NUDGES, guest_v1: NO_NUDGES })
   const [detailId, setDetailId] = useState(null)
   const [tasteReturn, setTasteReturn] = useState('chat')
   const factSeq = useRef(0)

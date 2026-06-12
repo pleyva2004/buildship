@@ -1,9 +1,12 @@
 # VISTA — Engineer B targets (run from repo root)
 
-.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live interview interview-live
+.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live interview interview-live test
 
 deps:             ## install backend deps (fastapi, uvicorn, openai-agents)
 	python3 -m pip install -r requirements.txt
+
+test:             ## smoke tests — all mock, zero keys, zero network
+	python3 -m pytest tests/ -q
 
 listings:         ## B2 discovery -> assets/listings/index.draft.json (mock tavily, zero keys)
 	python3 -m agent.listings

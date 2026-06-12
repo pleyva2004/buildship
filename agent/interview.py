@@ -25,7 +25,7 @@ from agent import config
 from agent.clients import nebius
 from agent.clients.mem0_client import Mem0Client
 
-INTERVIEW_LENGTH = 5  # must match app/src/mock/interview.js
+INTERVIEW_LENGTH = 6  # must match app/src/mock/interview.js
 
 TRAITS = [
     "bright", "cozy", "yard", "walkable", "office", "hosting",
@@ -143,6 +143,25 @@ def _fx_center(raw: str) -> dict:
     return out
 
 
+def _fx_anything(raw: str) -> dict:
+    a = raw.lower()
+    out = _fx()
+    if re.search(r"park|trail|outdoor|hik", a):
+        out["weights"]["parks"] = 2
+    if re.search(r"walk|coffee|caf|restaurant|bar", a):
+        out["weights"]["walkable"] = 2
+    if re.search(r"quiet|peace", a):
+        out["weights"]["quiet"] = 2
+    if re.search(r"host|guest|friends|entertain", a):
+        out["weights"]["hosting"] = 2
+    if re.search(r"downtown|city", a):
+        out["weights"]["downtown"] = 2
+    if re.search(r"yard|garden", a):
+        out["weights"]["yard"] = 2
+    out["facts"].append({"category": "other", "provenance": "stated", "text": f"Also important: {raw}"})
+    return out
+
+
 SCRIPT = {
     "q_who": {
         "prompt": "Who’s making this move with you?",
@@ -184,6 +203,14 @@ SCRIPT = {
         "chips": ["Walkable cafés and shops", "Quiet streets", "Near parks and trails", "Close to downtown"],
         "optional": True,
         "effects": _fx_center,
+        "next": lambda a: "q_anything",
+    },
+    # The standing final question — ALWAYS asked last, whatever path got here.
+    "q_anything": {
+        "prompt": "Last one — what else do you want out of your new home? Activities you love, things you want nearby, anything at all.",
+        "chips": ["Near a dog park", "Space for hobbies", "Good coffee close by", "Room for guests"],
+        "optional": True,
+        "effects": _fx_anything,
         "next": lambda a: None,
     },
 }
@@ -244,8 +271,12 @@ def _next_mock(answers: list[dict]) -> dict | None:
     if not answers:
         return _question_payload("q_who", 1)
     last = answers[-1]
+    asked_ids = {a.get("questionId") for a in answers}
     q = SCRIPT.get(last.get("questionId", ""))
     nxt = q["next"](last.get("answer", "").lower()) if q else None
+    # The last slot ALWAYS holds the open catch-all (and it never repeats).
+    if not nxt or len(answers) == INTERVIEW_LENGTH - 1:
+        nxt = None if "q_anything" in asked_ids else "q_anything"
     if not nxt:
         return None
     return _question_payload(nxt, len(answers) + 1)
@@ -296,6 +327,10 @@ COVERAGE — by the end you want signal on: who's moving / daily life, light & m
 preference, materials/textures, must-haves & deal-breakers, neighborhood feel. Deepen \
 into a topic only when an answer opens a door (a dog -> yard & walks; hosting -> \
 kitchen/dining). Otherwise advance to an uncovered area.
+THE FINAL QUESTION is always the open catch-all, in your own warm words: what else do \
+they want out of this home — activities they love, things they want nearby, any other \
+consideration. Give it id "final.anything_else". Ask it when one slot remains in the \
+budget, or sooner if coverage feels complete.
 
 SCORING — candidate homes are ranked by trait weights. Allowed traits (use ONLY these):
 {traits}
@@ -312,11 +347,12 @@ Respond with ONLY a JSON object, no prose, exactly this shape:
   "next_question": {{"id": "area.slug", "prompt": "...", "chips": ["…"], "optional": false}} or null
 }}
 
-Rules: facts must be useful later, at the preference level ("Must-have: outdoor space \
-for the dog"), never meta ("user answered the question"). Use the "Must-have: " text \
-prefix for hard requirements — category life_situation. If something clearly matters \
-to them but fits no category (a hobby, a fear, a story), keep it with category "other" \
-— NEVER force a bad fit and never drop it. provenance "stated" = they said it; \
+Rules: facts are SHORT DISTILLED TIDBITS (max ~10 words), digestible at a glance — \
+"Hosts dinners most weekends", "Woodworker — needs workshop space" — NEVER an echo of \
+the raw answer and never meta ("user answered the question"). Use the "Must-have: " \
+text prefix for hard requirements — category life_situation. If something clearly \
+matters to them but fits no category (a hobby, a fear, a story), keep it with category \
+"other" — NEVER force a bad fit and never drop it. provenance "stated" = they said it; \
 "inferred" = you read between the lines. chips are 3-4 SHORT TAPPABLE ANSWERS in the client's own voice \
 ("Long daily walks", "Bright & airy") — never questions, never lowercase fragments. \
 next_question = null when the budget is spent ({asked_next} >= {total}) \
@@ -392,6 +428,17 @@ def _record_live(profile_id: str, answers: list[dict], question_id: str, answer:
 
     nxt = plan["next_question"]
     asked_next = len(answers) + 2  # answers + this one + the next question
+    # The catch-all can never be skipped: if the planner wants to stop before
+    # it has been asked, serve the scripted one instead.
+    asked_ids = {a.get("questionId", "") for a in answers} | {question_id}
+    catchall_done = any("anything" in (i or "") for i in asked_ids)
+    if nxt is None and asked_next <= INTERVIEW_LENGTH and not catchall_done:
+        nxt = {
+            "id": "final.anything_else",
+            "prompt": SCRIPT["q_anything"]["prompt"],
+            "chips": SCRIPT["q_anything"]["chips"],
+            "optional": True,
+        }
     if nxt and asked_next <= INTERVIEW_LENGTH and nxt.get("prompt"):
         nxt = {
             "id": nxt.get("id") or f"dyn.{asked_next}",

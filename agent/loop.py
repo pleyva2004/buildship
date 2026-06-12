@@ -39,6 +39,9 @@ def run() -> None:
             print("[recall] " + " • ".join(m["text"] for m in turn["recalled"]))
         if turn["action"]:
             print(f"[action] {turn['action']}")
+        for fact in turn.get("new_facts", []):
+            tag = "revised" if fact.get("revised") else fact.get("provenance", "learned")
+            print(f"[memory:{tag}] ({fact['category']}) {fact['text']}")
         print(f"agent> {turn['reply']}\n")
 
 

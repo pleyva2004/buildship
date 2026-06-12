@@ -25,9 +25,9 @@ any turn degrades to the deterministic mock turn; the demo never stalls.
 | `config.py` | Loads `.env` (tiny stdlib loader, never overrides real env), exposes keys/paths and the `backend(client)` mock\|live selector |
 | `core.py` | `AgentSession` — the brain; dispatches mock \| live per turn. Also `parse_action`, `build_turn_message`, `load_listings`. **No HTTP imports, ever** |
 | `harness.py` | Agents SDK wiring (live path): Nebius via custom `AsyncOpenAI` + `OpenAIChatCompletionsModel`, tracing disabled. Imported lazily — the mock path never needs `openai-agents` |
-| `tools.py` | `TurnState` + the four function tools; action tools write into the run context, `turn()` reads them back |
+| `tools.py` | `TurnState` + six function tools: `recall_memories`, `search_web_listings`, `recommend_listings`, `generate_tour`, and the dynamic-memory pair `save_memory` / `revise_memory` (design 09 §3.8 — trait-level tidbits, revisions supersede; both feed `new_facts`) |
 | `listings.py` | One-time B2 discovery (`make listings[-live]`): Tavily search/extract → `assets/listings/index.draft.json` + photo URLs. **Never auto-writes the frozen `index.json`** |
-| `interview.py` | The getting-to-know-you engine (designs 08b/09): mock = exact port of `app/src/mock/interview.js` (parity-tested); live = one structured Nebius completion per answer → facts (mem0, with provenance) + trait weights + next adaptive question. Ranking is always the deterministic scorer. REPL via `make interview[-live]` |
+| `interview.py` | The getting-to-know-you engine (designs 08b/09): mock = exact port of `app/src/mock/interview.js` (parity-tested); live = one structured Nebius completion per answer → distilled fact tidbits (mem0, with provenance, open `other` lane) + trait weights + next adaptive question. Always ends on the open catch-all question (backstopped in code). Ranking is always the deterministic scorer. REPL via `make interview[-live]` |
 | `server.py` | FastAPI bridge on :8001. Routes are pure HTTP↔AgentSession translation; one shared `Mem0Client`, one session per profile |
 | `loop.py` | Terminal REPL — same brain, prints `[recall]` and `[action]` lines for debugging |
 | `seed.py` | Flattens `profiles/*.json` → atomic facts → mem0. Live mode wipes first (idempotent re-seed) |
@@ -81,7 +81,7 @@ doubles as the on-stage fallback.
 
 | Endpoint | Returns |
 |---|---|
-| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled}` |
+| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled, new_facts}` |
 | `GET /api/context/{profile_id}` | `{profile_id, memories}` — powers the memory rail |
 | `GET /api/listings` | `assets/listings/index.json` passthrough |
 | `POST /api/reset/{profile_id}` | Drops the session (rehearsals); memories untouched |
@@ -98,7 +98,9 @@ make seed         # sanity-check profile flattening (mock)
 make seed-live    # wipe + re-seed real mem0 with both profiles
 make listings     # B2 discovery → index.draft.json (mock tavily)
 make listings-live# same, real Tavily search + extract
-PROFILE=pablo_v1 make agent   # other persona
+make test         # smoke tests (tests/) — parity, engine, scorer, routes
+PROFILE=pablo_v1 make agent    # other persona
+PROFILE=guest_v1 make interview  # cold start — no seeded memories
 ```
 
 Design docs: [design/07-agent-harness.md](../design/07-agent-harness.md) (the tool-loop

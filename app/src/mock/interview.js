@@ -8,7 +8,7 @@
 
 import { LISTINGS } from './data.js'
 
-export const INTERVIEW_LENGTH = 5
+export const INTERVIEW_LENGTH = 6
 
 // trait weights an answer contributes; `must` marks hard filters whose
 // met/unmet state renders as chips (never a numeric score — design 08 §1).
@@ -134,6 +134,27 @@ const QUESTIONS = {
       out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Life centers on: ${answer.toLowerCase()}` })
       return out
     },
+    next: () => 'q_anything',
+  },
+
+  // The standing final question — ALWAYS asked last, whatever path got here.
+  // Open lane: whatever they say lands in the profile ("Also worth knowing").
+  q_anything: {
+    prompt: 'Last one — what else do you want out of your new home? Activities you love, things you want nearby, anything at all.',
+    chips: ['Near a dog park', 'Space for hobbies', 'Good coffee close by', 'Room for guests'],
+    optional: true,
+    effects(answer) {
+      const a = answer.toLowerCase()
+      const out = { weights: {}, must: [], facts: [] }
+      if (/park|trail|outdoor|hik/.test(a)) out.weights.parks = 2
+      if (/walk|coffee|caf|restaurant|bar/.test(a)) out.weights.walkable = 2
+      if (/quiet|peace/.test(a)) out.weights.quiet = 2
+      if (/host|guest|friends|entertain/.test(a)) out.weights.hosting = 2
+      if (/downtown|city/.test(a)) out.weights.downtown = 2
+      if (/yard|garden/.test(a)) out.weights.yard = 2
+      out.facts.push({ category: 'other', provenance: 'stated', text: `Also important: ${answer}` })
+      return out
+    },
     next: () => null,
   },
 }
@@ -151,7 +172,12 @@ export function nextQuestion(answers) {
     return { id: 'q_who', ...pick(QUESTIONS.q_who), asked: 1, total: INTERVIEW_LENGTH }
   }
   const last = answers[answers.length - 1]
-  const id = QUESTIONS[last.questionId]?.next(last.answer)
+  const askedIds = new Set(answers.map((a) => a.questionId))
+  let id = QUESTIONS[last.questionId]?.next(last.answer)
+  // The last slot ALWAYS holds the open catch-all (and it never repeats).
+  if (!id || answers.length === INTERVIEW_LENGTH - 1) {
+    id = askedIds.has('q_anything') ? null : 'q_anything'
+  }
   if (!id) return null
   return { id, ...pick(QUESTIONS[id]), asked: answers.length + 1, total: INTERVIEW_LENGTH }
 }

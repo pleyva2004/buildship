@@ -52,7 +52,7 @@ zero asset files**:
 | `src/api.js` | `chat / getContext / resetSession` + `nextQuestion / recordAnswer / rankListings` + `updateMemory / deleteMemory` — live API with baked-in mock fallback |
 | `src/assets.js` | **The only A↔B runtime coupling** — asset path builders following the filename convention, plus `PLACEHOLDER` |
 | `src/components/Welcome.jsx` | Act 1 — invitation input that becomes the chat; warm-start chips, returning-user row, ambient Ken Burns |
-| `src/components/InterviewView.jsx` | 02 · Getting to Know You — the 08b experience: intro Talk/Type choice, phases (speaking/ask/listening/thinking/done), orb + waveform, hold-to-speak voice answers (MediaRecorder → `/api/voice/transcribe`, auto-fallback to text), text thread + chips, and the "Your taste, taking shape" panel (palette, aesthetic, grouped facts incl. the open "Also worth knowing" lane) |
+| `src/components/InterviewView.jsx` | 02 · Getting to Know You — the 08b experience: intro Talk/Type choice, phases (speaking/ask/listening/thinking/done), orb + waveform, hold-to-speak voice answers via mic button OR held spacebar (MediaRecorder → `/api/voice/transcribe`, auto-fallback to text), text thread + chips, the always-asked final catch-all question, and the "Your taste, taking shape" panel (palette, aesthetic, grouped facts incl. the open "Also worth knowing" lane) |
 | `src/components/RerankPanel.jsx` | The learn→re-rank proof — animated pool reorder, met/unmet chips, "↑ moved up" |
 | `src/components/ChatView.jsx` | Conversation column; agent bubbles may carry inline listing cards and "✓ Saved to memory" fact chips |
 | `src/components/ListingCards.jsx` | Curated cards, why-you headline first (price demoted), one honest tradeoff chip, restyle peek, sorted by learned rank; click opens Listing Detail |
@@ -62,7 +62,7 @@ zero asset files**:
 | `src/components/GeneratingOverlay.jsx` | The ~8s loading moment — narrated with the spec's ACTUAL words while the real room photo blooms from dim to bright |
 | `src/components/TourView.jsx` | Payoff, slider-first: sticky proof line, per-room slider + taste cue chips, Jake ⇄ Pablo split-screen compare, save/share, video demoted to "play the full tour" |
 | `src/components/CompareSlider.jsx` | The proof component — ~40-line pointer-events wipe, no library |
-| `src/mock/data.js` | `SPECS / MEMORIES / LISTINGS / ROOM_LABELS / ROOM_CUES` — mirrors the agent API and `assets/listings/index.json`; 5-listing pool with `traits` for scoring |
+| `src/mock/data.js` | `SPECS / MEMORIES / LISTINGS / ROOM_LABELS / ROOM_CUES` — mirrors the agent API and `assets/listings/index.json`; 5-listing pool with `traits` for scoring. Includes `guest_v1` — a cold-start profile with zero seeded memories for testing without persona data |
 | `src/mock/brain.js` | Canned conversation turns mirroring `agent/mocks/turns.json`, generate-keyword backstop, naive fact extraction |
 | `src/mock/interview.js` | Deterministic mock twin of the agent's `next_question / record_answer / rerank` surface; ties break price-ascending so the right home visibly climbs |
 

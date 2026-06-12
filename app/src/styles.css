@@ -694,3 +694,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .orb.breathe, .orb .ring, .iv-wave i, .iv-dots i { animation: none; }
 }
+.iv-hint kbd {
+  padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line);
+  background: var(--card); font-size: 11.5px; font-family: var(--sans);
+}

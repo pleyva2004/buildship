@@ -29,7 +29,14 @@ with their inventory ids so the client sees the cards.
 generate_tour, then confirm it's rendering.
 - recall_memories digs deeper into what you know about them.
 - search_web_listings checks the live market for color; recommendations still \
-come only from INVENTORY."""
+come only from INVENTORY.
+- save_memory the moment you learn something new about them — short distilled \
+tidbits at the preference level ("Hosts dinners most weekends"), never \
+listing-level reactions ("liked the craftsman" -> save the WHY: "Warm character \
+beats new-build polish").
+- revise_memory when what they say CONTRADICTS what you knew — and name the \
+revision naturally in your reply ("you said bright-and-airy before, but you keep \
+warming to darker homes — I'm updating that")."""
 
 
 def build_agent(inventory: list[dict]) -> Agent:

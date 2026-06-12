@@ -23,6 +23,7 @@ class TurnState:
     memory: Mem0Client
     recalled: list = field(default_factory=list)  # facts shown in the memory rail
     action: dict | None = None  # at most one UI action per turn; last write wins
+    new_facts: list = field(default_factory=list)  # learned this turn → "✓ Saved" chips
 
 
 @function_tool
@@ -67,4 +68,39 @@ def generate_tour(ctx: RunContextWrapper[TurnState], listing_id: str) -> str:
     return f"Tour generation started for {listing_id}. Tell the client it's rendering in their taste."
 
 
-ALL_TOOLS = [recall_memories, search_web_listings, recommend_listings, generate_tour]
+@function_tool
+def save_memory(ctx: RunContextWrapper[TurnState], text: str,
+                category: str = "life_situation", source: str = "inferred") -> str:
+    """Save something NEW you just learned about the client. text is a short
+    distilled tidbit at the PREFERENCE level ("Character beats new-build polish
+    for them"), never listing-level ("liked alt1") and never a raw quote.
+    category: life_situation | taste | materials | mood_board | other.
+    source: stated (they said it) | inferred (you read between the lines)."""
+    state = ctx.context
+    state.memory.add(state.profile_id, text, category, source=source)
+    state.new_facts.append({"text": text, "category": category, "provenance": source})
+    return f"Saved to memory: {text}"
+
+
+@function_tool
+def revise_memory(ctx: RunContextWrapper[TurnState], old_fact: str, new_text: str, why: str) -> str:
+    """The client's preference CHANGED or contradicts what you knew — replace the
+    old fact instead of piling up a conflict. old_fact: the remembered fact to
+    revise (your best recollection of its wording). new_text: the short distilled
+    replacement. Acknowledge the revision out loud in your reply, naturally."""
+    state = ctx.context
+    matches = state.memory.search(state.profile_id, old_fact, k=1)
+    if matches:
+        state.memory.update(state.profile_id, matches[0]["id"], new_text)
+        category = matches[0]["category"]
+    else:  # nothing close enough — record the new truth rather than dropping it
+        category = "taste"
+        state.memory.add(state.profile_id, new_text, category, source="inferred")
+    state.new_facts.append(
+        {"text": new_text, "category": category, "provenance": "inferred", "revised": True}
+    )
+    return f"Memory updated: {new_text} (was: {old_fact})"
+
+
+ALL_TOOLS = [recall_memories, search_web_listings, recommend_listings, generate_tour,
+             save_memory, revise_memory]

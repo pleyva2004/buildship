@@ -36,6 +36,7 @@ class ChatTurn(BaseModel):
     reply: str
     action: dict | None = None
     recalled: list[Memory]
+    new_facts: list[dict] = []  # learned mid-conversation → "✓ Saved to memory" chips
 
 
 @app.post("/api/chat", response_model=ChatTurn)
