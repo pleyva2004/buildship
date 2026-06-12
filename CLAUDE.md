@@ -12,7 +12,7 @@ VISTA is a buyer-side demo of a seller-side business. The user converses with an
 ## 2. Non-negotiable demo requirements
 
 1. **The stage demo runs entirely on pre-generated, locally cached assets.** The app simulates live generation with an ~8s loading state. Final videos must exist as files on local disk, playable outside the app as a fallback.
-2. **Two taste profiles, one house.** The same hero listing rendered in two divergent aesthetics (Profile 1: Pablo's real profile; Profile 2: deliberately contrasting persona). Back-to-back playback is the proof of personalization.
+2. **Two taste profiles, one house.** The same hero listing rendered in two divergent aesthetics (Profile 1: Pablo's real profile — warm mid-century; Profile 2: Jake's real profile — bright Scandinavian minimalist). Both personas are real people, which strengthens the proof. Back-to-back playback is the proof of personalization.
 3. **Original-vs-restyled slider** on every room. This proves it is the same real house.
 4. **Visible context panel** showing what the AI knows about the user (sourced from mem0). The memory layer is the story.
 
@@ -79,19 +79,27 @@ The LLM converts a taste profile into ONE locked spec, injected verbatim into ev
 
 ```
 /pipeline      # Engineer A: restyle, video queue mgmt, ffmpeg stitch, ken-burns fallback
-/agent         # Engineer B: LLM agent, mem0 client, tavily client, style-spec generator
-/app           # Engineer B: React frontend (chat, context panel, listing cards, slider, player)
+/agent         # Engineer B: core.py (AgentSession brain), server.py (FastAPI :8001),
+               #   loop.py (terminal REPL), clients/ (nebius, mem0 — each MOCK|LIVE),
+               #   profiles/ (seed JSONs), mocks/ (canned turns = stage fallback), seed.py
+/app           # Engineer B: React/Vite frontend — one page, view states
+               #   (welcome → chat+memory-rail → generating overlay → tour+slider)
 /assets
+  /listings/index.json         # 3-listing inventory (agent + app read this)
   /listings/<id>/raw/          # original photos
   /listings/<id>/restyled/<profile_id>/   # edited stills
   /listings/<id>/video/<profile_id>/      # clips + final stitched tour.mp4
 /specs         # style spec JSONs (the A↔B contract)
+/design        # Engineer B design docs 00–06 (architecture decisions live here)
 /deck          # pitch + future-work slides
 ```
 
 - Python for /pipeline and /agent. React (Vite) for /app. No databases — JSON files on disk are fine for 24h.
-- All secrets in `.env`, never committed.
-- Asset filenames are the API: `<listing_id>__<room>__<profile_id>.{png,mp4}`. Engineer B's app reads assets by this convention; no other coupling.
+- All secrets in `.env`, never committed. `.env.example` documents every key.
+- Asset filenames are the API: `<listing_id>__<room>__<profile_id>.{png,mp4}`. Engineer B's app reads assets by this convention; no other coupling. The app degrades to placeholders for any missing asset.
+- **Mock-first rule:** every external client (Nebius, mem0, Tavily, Composio) has a MOCK twin behind the same interface, selected by `VISTA_BACKEND=mock|live` (per-client: `NEBIUS_BACKEND`, `MEM0_BACKEND`, …). Mock is default and is the on-stage fallback. Never wire a live call without its mock twin.
+- Agent logic lives in `core.py` (transport-agnostic) — `server.py` routes and `loop.py` REPL are thin shells over it. Don't put logic in routes.
+- Run targets: see `Makefile` (`make agent`, `make serve`, `make app`, `make seed-live`). Setup + API reference: `README.md`.
 
 ## 8. Decision log
 
@@ -99,3 +107,20 @@ The LLM converts a taste profile into ONE locked spec, injected verbatim into ev
 - Video generation: **Option A** (commercial free-tier credits, pre-generated). Option B = future work.
 - Restyle model: decide by H2 — Nebius-hosted Kontext if it exists, else Gemini image editing.
 - Conflict-of-interest rule for the pitch, if asked: seller money buys generation/distribution, never ranking.
+- Profile 2 is **Jake's real profile** (`jake_v1`, bright Scandinavian minimalist) — both personas are real people, not a mock contrast.
+- Backend architecture: mock-first behind `VISTA_BACKEND=mock|live`; mocks are deterministic and double as the stage fallback (zero-network demo viable).
+- HTTP layer: **FastAPI on :8001** (8000 occupied on dev machine), thin routes over `agent/core.py:AgentSession`. Chosen over stdlib for streaming/typed-contract iteration post-hackathon.
+- LLM: **Llama 3.3 70B confirmed live** on Nebius (`api.studio.nebius.com/v1`); emits `<action>` tags reliably. Keyword backstop guarantees `generate_tour` fires on "show me my version" regardless.
+- mem0 live: both profiles seeded (14 atomic facts each, categorized). `make seed-live` is idempotent (wipe + re-seed). mem0's search API ignores `limit` — enforced client-side.
+- Recall filtering: `constraint`-category memories (render rules like "no people") are excluded from conversational recall — the LLM over-interprets them as life preferences.
+
+## 9. Build status (end of backend bring-up)
+
+| Layer | Mock | Live |
+|---|---|---|
+| Nebius LLM | ✅ | ✅ tested |
+| mem0 (seeded) | ✅ | ✅ tested |
+| Tavily | — | key in .env, client pending (B2) |
+| Composio | — | key in .env, client pending |
+| React app | ✅ clickable end-to-end | wired to API w/ mock fallback |
+| Hero photos / restyles / tours | — | **pending (B2 blocks Engineer A)** |

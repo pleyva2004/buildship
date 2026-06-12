@@ -1,7 +1,7 @@
 """FastAPI bridge — thin shell over AgentSession (design 04 §5).
 
 Routes only translate HTTP <-> AgentSession; no agent logic lives here.
-Run:  make serve   ->  http://localhost:8000  (docs at /docs)
+Run:  make serve   ->  http://localhost:8001  (docs at /docs)
 The Vite dev server proxies /api here.
 """
 
