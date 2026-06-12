@@ -1,6 +1,12 @@
 # VISTA — Engineer B targets (run from repo root)
 
-.PHONY: agent agent-live app
+.PHONY: agent agent-live app seed seed-live
+
+seed:             ## flatten profiles -> memories (mock; sanity check)
+	python3 -m agent.seed
+
+seed-live:        ## wipe + re-seed real mem0 with both profiles
+	MEM0_BACKEND=live python3 -m agent.seed
 
 agent:            ## terminal chat with the VISTA agent (mock backend by default)
 	python3 -m agent.loop

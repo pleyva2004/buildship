@@ -1,30 +1,52 @@
-"""VISTA agent — v1 terminal chat loop (design 04, stage v1: chat only).
+"""VISTA agent — terminal chat loop with mem0 recall (design 04, v2).
 
-Run:  make agent          (mock backend, zero keys needed)
-      VISTA_BACKEND=live make agent   (once NEBIUS_API_KEY is in .env)
+Run:  make agent                       (all-mock, zero keys)
+      PROFILE=pablo_v1 make agent      (other persona)
+      MEM0_BACKEND=live make agent     (real memory, mock LLM)
+      VISTA_BACKEND=live make agent    (everything live)
 
-v1 scope: system prompt + rolling history + one LLM call per turn. The mem0
-recall step, listing index, and <action> tags from design 04 land in v2 —
-this file is the spine they plug into.
+Each turn: recall top-k facts from mem0 -> print [recall] -> inject into the
+prompt -> one LLM call. The {reply, recalled} shape here is exactly what the
+HTTP layer will hand the app's memory rail.
 """
 
+import os
 import sys
 
 from agent import config
 from agent.clients import nebius
+from agent.clients.mem0_client import Mem0Client
 
 SYSTEM_PROMPT = """You are VISTA, a personal home-buying agent. You already know \
 your client deeply — their taste, life situation, and constraints — and you speak \
 like a sharp, warm human agent who has worked with them for months, never like a \
 search engine. Keep replies to 2-4 sentences. Ground every recommendation in WHY \
-it fits this specific person. When they ask to see a home "in their style" or \
-"their version", confirm you are generating their personalized tour."""
+it fits this specific person, citing what you know about them. When they ask to \
+see a home "in their style" or "their version", confirm you are generating their \
+personalized tour."""
+
+
+def build_turn_message(user_msg: str, recalled: list[dict]) -> str:
+    """Inject recalled memories as context the model must ground its reply in."""
+    if not recalled:
+        return user_msg
+    facts = "\n".join(f"- ({m['category']}) {m['text']}" for m in recalled)
+    return (
+        f"[context — what you remember about this client, most relevant first]\n"
+        f"{facts}\n\n[client says]\n{user_msg}"
+    )
 
 
 def run() -> None:
-    mode = config.backend("nebius")
-    print(f"VISTA agent v1 — backend: {mode} (model: {config.NEBIUS_MODEL})")
-    print("Type 'exit' to quit.\n")
+    profile_id = os.environ.get("PROFILE", "jake_v1")
+    memory = Mem0Client()
+    known = memory.all(profile_id)
+
+    print(
+        f"VISTA agent — profile: {profile_id} | "
+        f"llm: {config.backend('nebius')} | memory: {config.backend('mem0')}"
+    )
+    print(f"[context] {len(known)} memories loaded\n")
 
     history: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
     while True:
@@ -38,7 +60,14 @@ def run() -> None:
         if user_msg.lower() in {"exit", "quit"}:
             break
 
-        history.append({"role": "user", "content": user_msg})
+        # constraints are render rules for the restyle pipeline, not conversation
+        # material — keep them out of recall or the LLM over-interprets them
+        # (e.g. "no people" read as "wants seclusion")
+        recalled = [m for m in memory.search(profile_id, user_msg, k=6) if m["category"] != "constraint"][:4]
+        if recalled:
+            print("[recall] " + " • ".join(m["text"] for m in recalled))
+
+        history.append({"role": "user", "content": build_turn_message(user_msg, recalled)})
         reply = nebius.chat(history)
         history.append({"role": "assistant", "content": reply})
         print(f"agent> {reply}\n")

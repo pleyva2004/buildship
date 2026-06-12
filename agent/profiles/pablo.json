@@ -1,0 +1,26 @@
+{
+  "profile_id": "pablo_v1",
+  "name": "Pablo",
+  "life_situation": {
+    "summary": "Trading up; design-led move, hosts dinners most weekends",
+    "household": "couple",
+    "budget_band": "800k-1.0M",
+    "must_haves": [
+      "a dining room worth gathering in",
+      "warm western light in the living room",
+      "character over new-build polish"
+    ]
+  },
+  "taste_descriptors": [
+    "cozy and warm over bright and stark",
+    "walnut, brass, layered textiles",
+    "golden-hour light, soft shadows",
+    "rooms that feel collected, not staged"
+  ],
+  "mood_board_refs": [
+    { "source": "pinterest", "label": "golden hour living", "imported_via": "composio" },
+    { "source": "pinterest", "label": "mid-century dining rooms", "imported_via": "composio" }
+  ],
+  "aesthetic_summary": "warm mid-century modern",
+  "hard_constraints": ["preserve architecture", "no people"]
+}

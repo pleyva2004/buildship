@@ -1,0 +1,26 @@
+{
+  "profile_id": "jake_v1",
+  "name": "Jake",
+  "life_situation": {
+    "summary": "First-time buyer, relocating to Austin, works from home 3 days/week",
+    "household": "couple, no kids, one dog (Daisy)",
+    "budget_band": "750k-900k",
+    "must_haves": [
+      "home office with real daylight",
+      "walkable neighborhood",
+      "outdoor space for the dog"
+    ]
+  },
+  "taste_descriptors": [
+    "bright and airy over cozy and dark",
+    "uncluttered, few but intentional objects",
+    "natural light is non-negotiable",
+    "pale woods, no heavy ornamentation"
+  ],
+  "mood_board_refs": [
+    { "source": "pinterest", "label": "Scandinavian living rooms", "imported_via": "composio" },
+    { "source": "pinterest", "label": "minimalist oak kitchens", "imported_via": "composio" }
+  ],
+  "aesthetic_summary": "bright Scandinavian minimalist",
+  "hard_constraints": ["preserve architecture", "no people"]
+}
