@@ -22,6 +22,7 @@ const OTHER_GROUP = 'Also worth knowing'
 
 function groupOf(fact) {
   const t = fact.text.toLowerCase()
+  if (fact.category === 'area_research') return 'Area research'
   if (t.startsWith('must-have') || t.startsWith('deal-breaker')) return 'Must-haves'
   if (fact.category === 'materials') return 'Materials'
   if (fact.category === 'taste' || fact.category === 'mood_board') return 'Taste'
@@ -188,7 +189,11 @@ export default function InterviewView({ profileId, answers, onAnswer, onDone }) 
 
   // ---- render ---------------------------------------------------------------
 
-  const groups = [...TARGET_GROUPS, ...(facts.some((f) => f.group === OTHER_GROUP) ? [OTHER_GROUP] : [])]
+  const groups = [
+    ...TARGET_GROUPS,
+    ...(facts.some((f) => f.group === 'Area research') ? ['Area research'] : []),
+    ...(facts.some((f) => f.group === OTHER_GROUP) ? [OTHER_GROUP] : []),
+  ]
 
   return (
     <div className="iv">

@@ -94,6 +94,17 @@ export async function finishInterview(profileId, answers) {
   }
 }
 
+// Background research status: {area: 'pending'|'done'|'unknown'}. null means
+// no live server — the caller should settle the bubble rather than poll on.
+export async function researchStatus(areas) {
+  try {
+    const data = await get(`/api/research/status?areas=${encodeURIComponent(areas.join(','))}`)
+    return data.areas
+  } catch {
+    return null
+  }
+}
+
 export async function getHealth() {
   try {
     return await get('/api/health') // {llm, memory, model} — which brain is answering

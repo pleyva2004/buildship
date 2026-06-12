@@ -1,6 +1,53 @@
 import { useEffect, useRef, useState } from 'react'
 import CuratedSet from './CuratedSet.jsx'
 import { REFINES } from '../mock/discovery.js'
+import { LISTINGS } from '../mock/data.js'
+
+// Narrated loading (design 08 voice): say what VISTA is doing, never a bare
+// "…" — and keep it MOVING: the label advances through a contextual sequence
+// so a long turn reads as progress, not a hang.
+function thinkingSequence(messages) {
+  const last = [...messages].reverse().find((m) => m.role === 'user')?.text?.toLowerCase() ?? ''
+  const hood = LISTINGS.map((l) => l.neighborhood).find((h) => h && last.includes(h.toLowerCase()))
+  if (hood) return [
+    `Researching ${hood}…`,
+    'Reading what locals say…',
+    'Cross-checking your must-haves…',
+    'Pulling it together…',
+  ]
+  if (/show me|my version|my style/.test(last)) return [
+    'Composing your tour…',
+    'Restyling each room to your taste…',
+    'Setting the light…',
+    'Almost there…',
+  ]
+  if (/find|recommend|home|house/.test(last)) return [
+    'Matching against what I know about you…',
+    'Weighing light, walkability, the yard…',
+    'Ranking what fits best…',
+    'Pulling it together…',
+  ]
+  return [
+    'Thinking it through…',
+    'Checking it against your profile…',
+    'Pulling it together…',
+  ]
+}
+
+function ThinkingBubble({ messages }) {
+  const [seq] = useState(() => thinkingSequence(messages)) // freeze on mount
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setStep((s) => Math.min(s + 1, seq.length - 1)), 2400)
+    return () => clearInterval(t)
+  }, [seq])
+  return (
+    <div className="bubble agent thinking">
+      <span key={step} className="think-label">{seq[step]}</span>
+      <span className="thinkdots"><span /><span /><span /></span>
+    </div>
+  )
+}
 
 // Act 2 — the conversation column, now the discovery surface (design 10):
 // curated sets render inline as VISTA's responses; reactions and refine chips
@@ -26,7 +73,7 @@ export default function ChatView({
         {messages.map((m, i) => (
           <div key={i}>
             {m.role === 'narrate' ? (
-              <div className="bubble narrate">✦ <span dangerouslySetInnerHTML={{
+              <div className="bubble narrate">{m.researchDone ? '✓' : '✦'} <span dangerouslySetInnerHTML={{
                 __html: m.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'),
               }} /></div>
             ) : (
@@ -54,7 +101,7 @@ export default function ChatView({
             ))}
           </div>
         ))}
-        {thinking && <div className="bubble agent thinking">…</div>}
+        {thinking && <ThinkingBubble messages={messages} />}
         <div ref={endRef} />
       </div>
 

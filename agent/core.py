@@ -26,7 +26,8 @@ INVENTORY — the only listings that exist; never invent others:
 {inventory}
 
 ACTIONS — append at most ONE tag, as the very last thing in your reply:
-- When you present specific listings to the client:
+- When you present specific listings to the client (ids ordered best match
+  first — the UI shows their cards in exactly this order):
   <action>{{"type": "recommend", "listing_ids": ["hero", "alt1"]}}</action>
 - When the client asks to see a home in their style / their version:
   <action>{{"type": "generate_tour", "listing_id": "hero"}}</action>
@@ -99,7 +100,7 @@ class AgentSession:
         reply, action = parse_action(nebius.chat_mock(self.history))
         action = action or self._backstop(user_msg)
         self.history.append({"role": "assistant", "content": reply})
-        return {"reply": reply, "action": action, "recalled": recalled, "new_facts": []}
+        return {"reply": reply, "action": action, "recalled": recalled, "new_facts": [], "researching": []}
 
     # -- live: Agents SDK tool loop on Nebius (design 07) -------------------
 
@@ -112,14 +113,37 @@ class AgentSession:
         state = TurnState(profile_id=self.profile_id, memory=self.memory, recalled=list(recalled))
 
         msg = build_turn_message(user_msg, recalled)
-        # Jake's hook #2: the client asked about an area -> research is GUARANTEED,
-        # not left to tool-choice. Pre-fetch (cached) and inject as context; the
-        # agent weaves it in. The research_area tool stays for agent-initiated digs.
-        intel_block = self._area_intel(user_msg)
+        # Jake's hook #2: the client asked about an area -> research is GUARANTEED.
+        # Cached intel injects instantly; a cache miss DISPATCHES research in the
+        # background and the agent answers now (never feels stuck) — the intel
+        # lands in mem0 + cache for the rail refresh and the next turn.
+        intel_block, dispatched = self._area_intel(user_msg)
         if intel_block:
             msg = f"{intel_block}\n\n{msg}"
+        if dispatched:
+            state.researching.extend(dispatched)
+            state.research_blind = True
+            msg = (f"[note: fresh research on {', '.join(dispatched)} is running — tell the "
+                   f"client you're looking into it and what you're checking for them; do NOT "
+                   f"present or recommend listings yet — you'll present them once the "
+                   f"research lands]\n\n{msg}")
+        import time
+        t0 = time.time()
+        print(f"[vista:turn] live turn start — profile={self.profile_id} model={config.NEBIUS_MODEL} recalled={len(recalled)}")
         reply, self._sdk_input = harness.run_turn(self._agent, state, self._sdk_input, msg)
-        action = state.action or self._backstop(user_msg)
+        print(f"[vista:turn] done in {time.time()-t0:.1f}s — action={(state.action or {}).get('type')} "
+              f"facts={len(state.new_facts)} researching={state.researching or '—'}")
+        action = state.action
+        # Two-phase turn: research is running with no prior intel — hold any
+        # model-initiated action (cards wait for the intel; a spurious tour
+        # must not hijack the turn). The UI sends a follow-up turn once the
+        # intel lands, and THAT reply presents the listings grounded in it.
+        if state.research_blind and action:
+            print(f"[vista:turn] holding {action.get('type')} — presenting after research lands")
+            action = None
+        # keyword backstop AFTER the hold: an explicit "show me my version"
+        # still always fires the tour (design 04 §2).
+        action = action or self._backstop(user_msg)
 
         # mirror into mock history so a mid-conversation fallback keeps context
         self.history.append({"role": "user", "content": msg})
@@ -129,21 +153,29 @@ class AgentSession:
             "action": action,
             "recalled": state.recalled,
             "new_facts": state.new_facts,  # save_memory/revise_memory writes this turn
+            "researching": state.researching,  # background research underway (UI narrates + refreshes)
         }
 
-    def _area_intel(self, user_msg: str) -> str | None:
-        """Mentioned neighborhoods -> fresh researcher intel (per-process cache)."""
+    def _area_intel(self, user_msg: str) -> tuple[str | None, list[str]]:
+        """Mentioned neighborhoods -> (cached intel to inject, areas dispatched)."""
         if config.backend("tavily") != "live" and config.backend("nebius") != "live":
-            return None
+            return None, []
         from agent import researcher
 
         low = user_msg.lower()
         hoods = {l.get("neighborhood", "") for l in load_listings()["listings"]}
-        hits = [h for h in hoods if h and h.lower() in low]
-        if not hits:
-            return None
-        notes = "\n".join(f"- {h}: {researcher.research_area(h)}" for h in hits[:2])
-        return f"[area intel — fresh research, weave in naturally]\n{notes}"
+        hits = [h for h in hoods if h and h.lower() in low][:2]
+        cached = [h for h in hits if researcher.has(h)]
+        dispatched = []
+        for h in hits:
+            if not researcher.has(h) and not researcher.pending(h):
+                print(f"[vista:research] dispatching background research: {h}")
+                researcher.dispatch(self.profile_id, h, self.memory)
+                dispatched.append(h)
+        if not cached:
+            return None, dispatched
+        notes = "\n".join(f"- {h}: {researcher.research_area(h)}" for h in cached)
+        return f"[area intel — fresh research, weave in naturally]\n{notes}", dispatched
 
     @staticmethod
     def _backstop(user_msg: str) -> dict | None:

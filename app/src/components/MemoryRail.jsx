@@ -14,12 +14,13 @@ const GROUPS = [
   { label: 'Taste', match: (m) => ['taste', 'materials'].includes(m.category) },
   { label: 'Inspiration', match: (m) => m.category === 'mood_board' },
   { label: 'Must-haves', match: (m) => m.category === 'life_situation' && m.text.startsWith('Must-have') },
+  { label: 'Area research', match: (m) => m.category === 'area_research' },
   // open lane — anything off-taxonomy (category 'other' etc.) still shows
-  { label: 'More', match: (m) => !['life_situation', 'taste', 'materials', 'mood_board', 'constraint'].includes(m.category) },
+  { label: 'More', match: (m) => !['life_situation', 'taste', 'materials', 'mood_board', 'constraint', 'area_research'].includes(m.category) },
   // 'constraint' is intentionally not rendered — render rules, not user context
 ]
 
-const PROVENANCE_LABEL = { stated: 'you said', inferred: 'inferred', imported: 'imported' }
+const PROVENANCE_LABEL = { stated: 'you said', inferred: 'inferred', imported: 'imported', researched: 'researched' }
 
 // what VISTA still needs before matching feels honest (design 08 (03))
 const READINESS = [

@@ -683,7 +683,9 @@ def _research_area_async(profile_id: str, area: str, memory: Mem0Client) -> None
     def work():
         try:
             intel = researcher.research_area(area)
-            memory.add(profile_id, f"{area}: {intel.split('.')[0]}.", "other", source="inferred")
+            first = intel.split(".")[0].strip()
+            tag = first if len(first) <= 90 else first[:87] + "…"
+            memory.add(profile_id, f"{area} — {tag}", "area_research", source="researched")
         except Exception as exc:
             print(f"[interview] area research failed ({exc})")
 

@@ -37,6 +37,7 @@ class ChatTurn(BaseModel):
     action: dict | None = None
     recalled: list[Memory]
     new_facts: list[dict] = []  # learned mid-conversation → "✓ Saved to memory" chips
+    researching: list[str] = []  # background area research underway
 
 
 @app.post("/api/chat", response_model=ChatTurn)
@@ -152,6 +153,18 @@ def memory_update(profile_id: str, req: MemoryUpdateRequest):
 def memory_delete(profile_id: str, req: MemoryDeleteRequest):
     memory.delete(profile_id, req.memory_id)
     return {"ok": True}
+
+
+# ---- background research status — the chat bubble polls this until research
+# settles ('pending' always clears, even on a failed run), then flips to done.
+
+
+@app.get("/api/research/status")
+def research_status(areas: str = ""):
+    from agent import researcher
+
+    names = [a.strip() for a in areas.split(",") if a.strip()]
+    return {"areas": {a: researcher.status(a) for a in names}}
 
 
 @app.get("/api/health")

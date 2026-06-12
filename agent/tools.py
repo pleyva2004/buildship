@@ -17,6 +17,10 @@ from agent.clients.mem0_client import Mem0Client
 VALID_ACTIONS = {"recommend", "generate_tour"}
 
 
+def _log(tool: str, detail: str) -> None:
+    print(f"[vista:tool] {tool}: {detail}")
+
+
 @dataclass
 class TurnState:
     profile_id: str
@@ -24,12 +28,17 @@ class TurnState:
     recalled: list = field(default_factory=list)  # facts shown in the memory rail
     action: dict | None = None  # at most one UI action per turn; last write wins
     new_facts: list = field(default_factory=list)  # learned this turn → "✓ Saved" chips
+    researching: list = field(default_factory=list)  # areas dispatched in background
+    # research dispatched with NO prior intel: hold cards this turn — the UI's
+    # follow-up turn presents them once the intel lands (two-phase turn)
+    research_blind: bool = False
 
 
 @function_tool
 def recall_memories(ctx: RunContextWrapper[TurnState], query: str) -> str:
     """Search everything you remember about this client (taste, life situation,
     mood boards). Use when you need more context than you already have."""
+    _log("recall_memories", query)
     state = ctx.context
     seen = {m["id"] for m in state.recalled}
     found = [
@@ -46,6 +55,7 @@ def recall_memories(ctx: RunContextWrapper[TurnState], query: str) -> str:
 def search_web_listings(ctx: RunContextWrapper[TurnState], query: str) -> str:
     """Search the live market for home listings. Use for market color and to
     ground your discovery story; only ever recommend homes from your INVENTORY."""
+    _log("search_web_listings", query)
     results = tavily_client.search(query, max_results=3)
     if not results:
         return "No listings found."
@@ -55,7 +65,15 @@ def search_web_listings(ctx: RunContextWrapper[TurnState], query: str) -> str:
 @function_tool
 def recommend_listings(ctx: RunContextWrapper[TurnState], listing_ids: list[str]) -> str:
     """Present specific listings to the client. Call this whenever your reply
-    names listings — the UI renders their cards from it. Use inventory ids."""
+    names listings — the UI renders their cards from it, IN YOUR ORDER, best
+    match first. Re-call it whenever the client's ask changes what should rank
+    first (e.g. "the cheapest" -> reorder by price). Use inventory ids."""
+    _log("recommend_listings", ", ".join(listing_ids))
+    if ctx.context.research_blind:
+        # two-phase turn: cards wait for the research; steer the model to wrap up
+        return ("Cards are HELD until your research lands — you'll present them in "
+                "your next reply. Stop calling tools and answer in prose now: tell "
+                "the client what you're looking into.")
     ctx.context.action = {"type": "recommend", "listing_ids": listing_ids}
     return f"Cards displayed for: {', '.join(listing_ids)}. Now give your reasoning in prose."
 
@@ -64,6 +82,7 @@ def recommend_listings(ctx: RunContextWrapper[TurnState], listing_ids: list[str]
 def generate_tour(ctx: RunContextWrapper[TurnState], listing_id: str) -> str:
     """Generate the client's personalized restyled tour of a home. Call this when
     they ask to see a home in their style / their version."""
+    _log("generate_tour", listing_id)
     ctx.context.action = {"type": "generate_tour", "listing_id": listing_id}
     return f"Tour generation started for {listing_id}. Tell the client it's rendering in their taste."
 
@@ -76,6 +95,7 @@ def save_memory(ctx: RunContextWrapper[TurnState], text: str,
     for them"), never listing-level ("liked alt1") and never a raw quote.
     category: life_situation | taste | materials | mood_board | other.
     source: stated (they said it) | inferred (you read between the lines)."""
+    _log("save_memory", text)
     state = ctx.context
     state.memory.add(state.profile_id, text, category, source=source)
     state.new_facts.append({"text": text, "category": category, "provenance": source})
@@ -88,6 +108,7 @@ def revise_memory(ctx: RunContextWrapper[TurnState], old_fact: str, new_text: st
     old fact instead of piling up a conflict. old_fact: the remembered fact to
     revise (your best recollection of its wording). new_text: the short distilled
     replacement. Acknowledge the revision out loud in your reply, naturally."""
+    _log("revise_memory", f"{old_fact!r} -> {new_text!r}")
     state = ctx.context
     matches = state.memory.search(state.profile_id, old_fact, k=1)
     if matches:
@@ -105,18 +126,43 @@ def revise_memory(ctx: RunContextWrapper[TurnState], old_fact: str, new_text: st
 @function_tool
 def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "") -> str:
     """Research an Austin neighborhood for this client — walkability, parks,
-    vibe, market color. Call when discussing an area or grounding a
-    recommendation ("you said walkable matters — South Congress is a 12-minute
-    walk"). focus: what THIS client cares about, from their profile."""
+    vibe, market color. Call WHENEVER intel would help — discussing an area,
+    grounding a recommendation, or digging a new angle (schools, commute,
+    nightlife). Repeat calls with a NEW focus are encouraged; identical
+    repeats are free no-ops. focus: what THIS client cares about right now."""
     from agent import researcher  # lazy: keeps tools importable without the module chain
 
     state = ctx.context
-    intel = researcher.research_area(area, focus or "walkability, parks, overall vibe")
-    fact = {"category": "other", "provenance": "inferred", "text": f"{area}: {intel.split('.')[0]}."}
-    if not any(f["text"] == fact["text"] for f in state.new_facts):
-        state.memory.add(state.profile_id, fact["text"], "other", source="inferred")
-        state.new_facts.append(fact)
-    return intel
+    _log("research_area", f"{area} (focus: {focus or 'general'})")
+    area = area.strip().title()[:28]  # a place name, not a sentence — keep tags clean
+    personalized = bool(focus) and focus != researcher.GENERAL
+    fkind = f"focus:{focus.strip().lower()[:48]}" if personalized else "general"
+
+    if researcher.has(area, "general"):
+        intel = researcher.research_area(area)  # general intel, cached
+        if personalized and researcher.has(area, fkind):
+            return researcher.research_area(area, focus, fkind)  # this angle, cached
+        # the agent may dig any NEW angle whenever it judges useful — identical
+        # repeats are no-ops, fresh focuses always dispatch
+        if personalized and not researcher.pending(area, fkind):
+            researcher.dispatch(state.profile_id, area, state.memory, focus, kind=fkind)
+            if area not in state.researching:
+                state.researching.append(area)
+            intel += f" (A tailored pass on {focus} is running — more shortly.)"
+        return intel
+
+    if researcher.pending(area, "general"):
+        return (f"Research on {area} is already running — answer from what you know; "
+                f"specifics arrive momentarily.")
+    # first mention: dispatch the GENERAL pass; never block the reply
+    researcher.dispatch(state.profile_id, area, state.memory)
+    if area not in state.researching:
+        state.researching.append(area)
+    state.research_blind = True
+    return (f"Research on {area} dispatched — results arrive shortly. Tell the client "
+            f"you're digging into {area} right now and what you're checking for them. "
+            f"Do NOT present or recommend listings this turn — you'll present them "
+            f"once the research lands.")
 
 
 ALL_TOOLS = [recall_memories, search_web_listings, recommend_listings, generate_tour,

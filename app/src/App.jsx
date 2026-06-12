@@ -7,7 +7,7 @@ import TasteProfileView from './components/TasteProfileView.jsx'
 import ListingDetailView from './components/ListingDetailView.jsx'
 import GeneratingOverlay from './components/GeneratingOverlay.jsx'
 import TourView from './components/TourView.jsx'
-import { chat, getContext, updateMemory, deleteMemory, finishInterview, resetSession } from './api.js'
+import { chat, getContext, updateMemory, deleteMemory, finishInterview, resetSession, researchStatus } from './api.js'
 import { rankListings } from './mock/interview.js'
 import * as discovery from './mock/discovery.js'
 import { SPECS } from './mock/data.js'
@@ -50,6 +50,37 @@ export default function App() {
   const [detailId, setDetailId] = useState(null)
   const [tasteReturn, setTasteReturn] = useState('chat')
   const factSeq = useRef(0)
+  const researchSeq = useRef(0)
+  const sendRef = useRef(null) // pollResearch -> sendMessage without a circular dep
+
+  // Poll the research bubble until the background work settles, then flip it
+  // to done, refresh the rail, and fire the second phase of the turn: a silent
+  // follow-up so the agent comes back with findings + listings grounded in the
+  // fresh intel (the first reply only acknowledged it was looking). 'pending'
+  // always clears server-side (even on a failed run) and a dead server returns
+  // null — so this never polls forever. depth caps follow-up chains.
+  const pollResearch = useCallback((rid, areas, depth = 0) => {
+    let tries = 0
+    const tick = async () => {
+      const status = await researchStatus(areas)
+      const settled = !status || areas.every((a) => status[a] !== 'pending')
+      if (settled || ++tries >= 20) {
+        setMessages((prev) => prev.map((m) => m.researchId === rid
+          ? { ...m, researchDone: true, text: `Research on **${areas.join(' and ')}** is in.` }
+          : m))
+        getContext(profileId).then(setMemories)
+        if (status && depth < 2) {
+          sendRef.current?.(
+            `[the research on ${areas.join(' and ')} just landed — share the key findings conversationally and present the homes that fit this client best now]`,
+            { silent: true, depth: depth + 1 },
+          )
+        }
+        return
+      }
+      setTimeout(tick, 2500)
+    }
+    setTimeout(tick, 2500)
+  }, [profileId])
 
   // Memory rail loads from the live agent (mock fallback inside api.js).
   useEffect(() => {
@@ -83,24 +114,48 @@ export default function App() {
     setDisc((prev) => ({ ...prev, [profileId]: next }))
   }, [profileId])
 
-  const sendMessage = useCallback(async (text) => {
-    setMessages((prev) => [...prev, { role: 'user', text }])
+  const sendMessage = useCallback(async (text, { silent = false, depth = 0 } = {}) => {
+    if (!silent) setMessages((prev) => [...prev, { role: 'user', text }])
     setThinking(true)
     try {
       const turn = await chat(profileId, text)
       const isSet = turn.action?.type === 'recommend'
-      if (isSet) setDisc((prev) => ({ ...prev, [profileId]: prev[profileId] ?? freshDisc(profileId) }))
-      setMessages((prev) => [
-        ...prev,
-        { role: 'agent', text: turn.reply, set: isSet, newFacts: turn.new_facts ?? [] },
-      ])
+      // The agent's listing_ids ARE the rerank — pin them to the top of the set
+      // so the cards always agree with the reply's reasoning.
+      let next = isSet ? discovery.recommend(discCur.state, turn.action.listing_ids) : null
+      // Preferences saved this turn re-rank too (chip-style weight bumps) —
+      // silently under the agent's pins, narrated when the agent didn't rerank.
+      let bumpNarration = null
+      const bumps = discovery.bumpsFromFacts(turn.new_facts)
+      if (bumps.length) {
+        const learned = discovery.learn((next ?? discCur).state, bumps, { quiet: isSet })
+        next = { state: learned.state, set: learned.set }
+        bumpNarration = learned.narration
+      }
+      if (next) commitDisc(next)
+      setMessages((prev) => {
+        const out = [...prev, { role: 'agent', text: turn.reply, set: isSet, newFacts: turn.new_facts ?? [] }]
+        // only narrate a re-rank the user can see (cards already on screen)
+        if (bumpNarration && prev.some((m) => m.set)) out.push({ role: 'narrate', text: bumpNarration })
+        return out
+      })
       setRecalledIds((turn.recalled ?? []).map((m) => m.id))
       addFacts(turn.new_facts)
+      if (turn.researching?.length) {
+        const rid = ++researchSeq.current
+        setMessages((prev) => [...prev, {
+          role: 'narrate',
+          researchId: rid,
+          text: `Researching **${turn.researching.join(' and ')}** — I'll come back with what I find.`,
+        }])
+        pollResearch(rid, turn.researching, depth)
+      }
       if (turn.action?.type === 'generate_tour') setGenerating(true)
     } finally {
       setThinking(false)
     }
-  }, [profileId, addFacts, freshDisc])
+  }, [profileId, addFacts, discCur, commitDisc, pollResearch])
+  sendRef.current = sendMessage
 
   // ---- discovery reactions (design 10 §6) — always narrated -----------------
   const onRefine = useCallback((r) => {
