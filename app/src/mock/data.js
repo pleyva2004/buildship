@@ -1,5 +1,6 @@
-// Mock data layer — mirrors what the agent API (design 04 §5) will return.
-// Swap point: api.js. Specs mirror the frozen /specs/*.json (the A↔B contract).
+// Mock data layer — byte-compatible with the agent API's shapes, so api.js can
+// fall back to it transparently. Categories use the agent's canonical names
+// (life_situation | taste | mood_board | constraint); MemoryRail maps labels.
 
 export const SPECS = {
   jake_v1: {
@@ -20,33 +21,37 @@ export const SPECS = {
   },
 }
 
-// Memory rail content, grouped the way mem0_client.all() will group it (design 01).
+// Mirrors agent/clients/mem0_client.py flatten_profile() output.
 export const MEMORIES = {
   jake_v1: [
-    { id: 'j1', category: 'Life', text: 'Relocating to Austin with partner + dog (Daisy)' },
-    { id: 'j2', category: 'Life', text: 'Works from home 3 days a week' },
-    { id: 'j3', category: 'Life', text: 'Budget band $750k–900k' },
-    { id: 'j4', category: 'Taste', text: 'Bright and airy over cozy and dark' },
-    { id: 'j5', category: 'Taste', text: 'Pale woods, no heavy ornamentation' },
-    { id: 'j6', category: 'Taste', text: 'Few but intentional objects' },
-    { id: 'j7', category: 'Inspiration', text: 'Pinterest: “Scandinavian living rooms” (via Composio)' },
-    { id: 'j8', category: 'Inspiration', text: 'Pinterest: “minimalist oak kitchens” (via Composio)' },
-    { id: 'j9', category: 'Must-haves', text: 'Home office with real daylight' },
-    { id: 'j10', category: 'Must-haves', text: 'Walkable neighborhood' },
-    { id: 'j11', category: 'Must-haves', text: 'Outdoor space for the dog' },
+    { id: 'j1', category: 'life_situation', text: 'Jake: First-time buyer, relocating to Austin, works from home 3 days/week' },
+    { id: 'j2', category: 'life_situation', text: 'Household: couple, no kids, one dog (Daisy)' },
+    { id: 'j3', category: 'life_situation', text: 'Budget band: 750k-900k' },
+    { id: 'j4', category: 'life_situation', text: 'Must-have: home office with real daylight' },
+    { id: 'j5', category: 'life_situation', text: 'Must-have: walkable neighborhood' },
+    { id: 'j6', category: 'life_situation', text: 'Must-have: outdoor space for the dog' },
+    { id: 'j7', category: 'taste', text: 'bright and airy over cozy and dark' },
+    { id: 'j8', category: 'taste', text: 'uncluttered, few but intentional objects' },
+    { id: 'j9', category: 'taste', text: 'natural light is non-negotiable' },
+    { id: 'j10', category: 'taste', text: 'pale woods, no heavy ornamentation' },
+    { id: 'j11', category: 'mood_board', text: 'Mood board: “Scandinavian living rooms” (pinterest, via composio)' },
+    { id: 'j12', category: 'mood_board', text: 'Mood board: “minimalist oak kitchens” (pinterest, via composio)' },
   ],
   pablo_v1: [
-    { id: 'p1', category: 'Life', text: 'Trading up; design-led move' },
-    { id: 'p2', category: 'Life', text: 'Hosts dinners most weekends' },
-    { id: 'p3', category: 'Taste', text: 'Cozy and warm over bright and stark' },
-    { id: 'p4', category: 'Taste', text: 'Walnut, brass, layered textiles' },
-    { id: 'p5', category: 'Inspiration', text: 'Mood board: “golden hour living” (via Composio)' },
-    { id: 'p6', category: 'Must-haves', text: 'A dining room worth gathering in' },
-    { id: 'p7', category: 'Must-haves', text: 'Warm western light in the living room' },
+    { id: 'p1', category: 'life_situation', text: 'Pablo: Trading up; design-led move, hosts dinners most weekends' },
+    { id: 'p2', category: 'life_situation', text: 'Household: couple' },
+    { id: 'p3', category: 'life_situation', text: 'Budget band: 800k-1.0M' },
+    { id: 'p4', category: 'life_situation', text: 'Must-have: a dining room worth gathering in' },
+    { id: 'p5', category: 'life_situation', text: 'Must-have: warm western light in the living room' },
+    { id: 'p6', category: 'life_situation', text: 'Must-have: character over new-build polish' },
+    { id: 'p7', category: 'taste', text: 'cozy and warm over bright and stark' },
+    { id: 'p8', category: 'taste', text: 'walnut, brass, layered textiles' },
+    { id: 'p9', category: 'taste', text: 'golden-hour light, soft shadows' },
+    { id: 'p10', category: 'taste', text: 'rooms that feel collected, not staged' },
+    { id: 'p11', category: 'mood_board', text: 'Mood board: “golden hour living” (pinterest, via composio)' },
+    { id: 'p12', category: 'mood_board', text: 'Mood board: “mid-century dining rooms” (pinterest, via composio)' },
   ],
 }
-
-export const MEMORY_CATEGORIES = ['Life', 'Taste', 'Inspiration', 'Must-haves']
 
 // Listing inventory — mirrors assets/listings/index.json (design 03 §2).
 export const LISTINGS = [

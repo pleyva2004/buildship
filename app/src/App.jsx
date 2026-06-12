@@ -1,34 +1,47 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Welcome from './components/Welcome.jsx'
 import ChatView from './components/ChatView.jsx'
 import MemoryRail from './components/MemoryRail.jsx'
 import GeneratingOverlay from './components/GeneratingOverlay.jsx'
 import TourView from './components/TourView.jsx'
-import { respond } from './mock/brain.js'
+import { chat, getContext } from './api.js'
 import { SPECS } from './mock/data.js'
 
-// The spine (design 05, reconciled with the five-act flow):
-//   WELCOME ─► CHAT (thread + memory rail + inline cards + taste card)
-//                 └─ generate ─► [GENERATING overlay ~8s] ─► TOUR
-// One page, view states, no router. Swap point for the live backend: replace
-// respond() with POST /api/chat — the shape is identical (design 04 §5).
+// The spine: WELCOME ─► CHAT ─► [GENERATING ~8s] ─► TOUR. One page, view
+// states, no router. Backend: FastAPI bridge via api.js, mock fallback baked in.
 export default function App() {
   const [view, setView] = useState('welcome') // welcome | chat | tour
   const [generating, setGenerating] = useState(false)
   const [profileId, setProfileId] = useState('jake_v1')
   const [messages, setMessages] = useState([])
+  const [memories, setMemories] = useState([])
   const [recalledIds, setRecalledIds] = useState([])
+  const [thinking, setThinking] = useState(false)
 
-  const sendMessage = useCallback((text) => {
-    const turn = respond(text)
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', text },
-      { role: 'agent', text: turn.reply, action: turn.action?.type === 'recommend' ? turn.action : null },
-    ])
-    setRecalledIds(turn.recalled)
-    if (turn.action?.type === 'generate_tour') setGenerating(true)
-  }, [])
+  // Memory rail loads from the live agent (mock fallback inside api.js).
+  useEffect(() => {
+    getContext(profileId).then(setMemories)
+  }, [profileId])
+
+  const sendMessage = useCallback(async (text) => {
+    setMessages((prev) => [...prev, { role: 'user', text }])
+    setThinking(true)
+    try {
+      const turn = await chat(profileId, text)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'agent',
+          text: turn.reply,
+          action: turn.action?.type === 'recommend' ? turn.action : null,
+        },
+      ])
+      setRecalledIds((turn.recalled ?? []).map((m) => m.id))
+      if (turn.action?.type === 'generate_tour') setGenerating(true)
+    } finally {
+      setThinking(false)
+    }
+  }, [profileId])
 
   const start = useCallback((text) => {
     setView('chat')
@@ -64,17 +77,18 @@ export default function App() {
           <ChatView
             messages={messages}
             profileId={profileId}
+            thinking={thinking}
             onSend={sendMessage}
             onGenerate={() => setGenerating(true)}
           />
-          <MemoryRail profileId={profileId} recalledIds={recalledIds} />
+          <MemoryRail profileId={profileId} memories={memories} recalledIds={recalledIds} />
         </div>
       )}
 
       {view === 'tour' && (
         <div className="main">
           <TourView profileId={profileId} onBack={() => setView('chat')} />
-          <MemoryRail profileId={profileId} recalledIds={[]} />
+          <MemoryRail profileId={profileId} memories={memories} recalledIds={[]} />
         </div>
       )}
 

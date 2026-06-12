@@ -9,12 +9,12 @@
     {
       "stage": "S2_RECOMMEND",
       "keywords": ["what did you find"],
-      "reply": "Three worth your time, but one stands out: a 4BR in Travis Heights — bright corner lot, the office gets full morning light, fenced yard, and you can walk to South Congress. The other two are solid on price but darker inside, and you've told me bright-and-airy is non-negotiable. Want the details on Travis Heights?"
+      "reply": "Three worth your time, but one stands out: a 4BR in Travis Heights — bright corner lot, the office gets full morning light, fenced yard, and you can walk to South Congress. The other two are solid on price but darker inside, and you've told me bright-and-airy is non-negotiable. Want the details on Travis Heights?\n<action>{\"type\": \"recommend\", \"listing_ids\": [\"hero\", \"alt1\", \"alt2\"]}</action>"
     },
     {
       "stage": "S3_THE_ASK",
       "keywords": ["show me", "version"],
-      "reply": "Generating your tour of the Travis Heights house now — same rooms, same architecture, restyled to your taste: pale oak, linen, that bright Scandinavian calm you keep pinning. This takes a few seconds."
+      "reply": "Generating your tour of the Travis Heights house now — same rooms, same architecture, restyled to your taste: pale oak, linen, that bright Scandinavian calm you keep pinning. This takes a few seconds.\n<action>{\"type\": \"generate_tour\", \"listing_id\": \"hero\"}</action>"
     },
     {
       "stage": "S5_REVEAL",
