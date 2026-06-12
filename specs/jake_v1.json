@@ -1,0 +1,29 @@
+{
+  "profile_id": "jake_v1",
+  "aesthetic_name": "bright Scandinavian minimalist",
+  "palette_hex": [
+    "#F5F3EF",
+    "#D9D2C7",
+    "#1C1C1C",
+    "#A7B5A0"
+  ],
+  "materials": [
+    "pale oak",
+    "linen",
+    "matte black steel",
+    "ceramic"
+  ],
+  "furniture_vocabulary": [
+    "minimalist platform sofa",
+    "spindle dining chair",
+    "paper pendant lamp",
+    "open oak shelving"
+  ],
+  "lighting_mood": "bright, cool daylight, airy and even",
+  "hard_constraints": [
+    "preserve architecture",
+    "preserve windows/doors",
+    "preserve room geometry",
+    "no people"
+  ]
+}
