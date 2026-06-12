@@ -38,7 +38,17 @@
         "office",
         "hosting"
       ],
-      "neighborhood": "Travis Heights"
+      "neighborhood": "Travis Heights",
+      "features": {
+        "light": 0.9,
+        "walkable": 0.85,
+        "yard": 0.8,
+        "value": 0.5,
+        "character": 0.5,
+        "open": 0.8,
+        "quiet": 0.5
+      },
+      "hue": 28
     },
     {
       "listing_id": "alt1",
@@ -68,7 +78,17 @@
         "cozy",
         "yard"
       ],
-      "neighborhood": "Zilker"
+      "neighborhood": "Zilker",
+      "features": {
+        "light": 0.45,
+        "walkable": 0.85,
+        "yard": 0.7,
+        "value": 0.65,
+        "character": 0.95,
+        "open": 0.4,
+        "quiet": 0.6
+      },
+      "hue": 26
     },
     {
       "listing_id": "alt2",
@@ -98,7 +118,17 @@
         "quiet",
         "office"
       ],
-      "neighborhood": "Mueller"
+      "neighborhood": "Mueller",
+      "features": {
+        "light": 0.9,
+        "walkable": 0.65,
+        "yard": 0.55,
+        "value": 0.9,
+        "character": 0.2,
+        "open": 0.9,
+        "quiet": 0.6
+      },
+      "hue": 36
     },
     {
       "listing_id": "alt3",
@@ -130,7 +160,17 @@
           "collected-not-staged energy",
           "evening porch light"
         ]
-      }
+      },
+      "features": {
+        "light": 0.55,
+        "walkable": 0.8,
+        "yard": 0.85,
+        "value": 0.6,
+        "character": 0.9,
+        "open": 0.4,
+        "quiet": 0.8
+      },
+      "hue": 30
     },
     {
       "listing_id": "alt4",
@@ -161,7 +201,97 @@
           "great hosting kitchen",
           "cooler palette than yours"
         ]
-      }
+      },
+      "features": {
+        "light": 0.95,
+        "walkable": 0.9,
+        "yard": 0.1,
+        "value": 0.35,
+        "character": 0.6,
+        "open": 0.85,
+        "quiet": 0.3
+      },
+      "hue": 38
+    },
+    {
+      "listing_id": "alt5",
+      "title": "Family home in Circle C",
+      "price": "$690,000",
+      "location": "Austin, TX",
+      "neighborhood": "Circle C",
+      "beds": 4,
+      "baths": 3,
+      "sqft": 2560,
+      "summary": "Big family home on a quiet cul-de-sac; huge fenced yard, great value, car-dependent.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "traits": [
+        "yard",
+        "quiet",
+        "turnkey"
+      ],
+      "match_notes": {
+        "jake_v1": [
+          "huge yard for Daisy",
+          "quiet — trade-off: not walkable"
+        ],
+        "pablo_v1": [
+          "space to host",
+          "suburban polish — trade-off"
+        ]
+      },
+      "features": {
+        "light": 0.6,
+        "walkable": 0.25,
+        "yard": 0.95,
+        "value": 0.95,
+        "character": 0.3,
+        "open": 0.7,
+        "quiet": 0.85
+      },
+      "hue": 34
+    },
+    {
+      "listing_id": "alt6",
+      "title": "Classic in Clarksville",
+      "price": "$960,000",
+      "location": "Austin, TX",
+      "neighborhood": "Clarksville",
+      "beds": 3,
+      "baths": 2,
+      "sqft": 1690,
+      "summary": "Storied Clarksville classic; original character, walk-everywhere, premium price.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "traits": [
+        "character",
+        "walkable",
+        "cozy"
+      ],
+      "match_notes": {
+        "jake_v1": [
+          "walkable heart of old Austin",
+          "stretch on budget — trade-off"
+        ],
+        "pablo_v1": [
+          "the most character on the list",
+          "priced for it"
+        ]
+      },
+      "features": {
+        "light": 0.65,
+        "walkable": 0.85,
+        "yard": 0.5,
+        "value": 0.25,
+        "character": 0.95,
+        "open": 0.45,
+        "quiet": 0.7
+      },
+      "hue": 26
     }
   ]
 }

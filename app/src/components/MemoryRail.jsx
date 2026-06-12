@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { SPECS } from '../mock/data.js'
+import { LISTINGS, SPECS } from '../mock/data.js'
+import { FEATURES, START_WEIGHTS, WEIGHT_CAP } from '../mock/discovery.js'
 import { applyNudges } from './TasteProfileView.jsx'
 
 // The "knows you" proof — sacred (design 05). Renders whatever memories the
@@ -28,15 +29,47 @@ const READINESS = [
   { label: 'a taste cue', has: (ms) => ms.some((m) => m.category === 'taste' || m.category === 'mood_board') },
 ]
 
-export default function MemoryRail({ profileId, spec: specOverride, memories, recalledIds, nudges, onEdit, onRemove, onConfirm, onOpenTaste }) {
+export default function MemoryRail({ profileId, spec: specOverride, weights, savedIds = [], memories, recalledIds, nudges, onEdit, onRemove, onConfirm, onOpenTaste }) {
   const spec = applyNudges(specOverride ?? SPECS[profileId], nudges ?? { warmth: 0, ornate: 0, light: 0 })
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
 
   const missing = READINESS.filter((r) => !r.has(memories))
+  const startW = START_WEIGHTS[profileId] ?? START_WEIGHTS.guest_v1
+  const weightRows = weights
+    ? Object.keys(weights).sort((a, b) => weights[b] - weights[a]).slice(0, 5)
+    : []
 
   return (
     <aside className="rail">
+      {/* merged rail (design 10b §4): weights + saved sit ABOVE memories —
+          a reaction moves a bar AND lands a memory chip, one story */}
+      {weights && (
+        <div className="rail-weights">
+          <h2>What VISTA is weighting</h2>
+          {weightRows.map((k) => (
+            <div className="weight" key={k}>
+              <div className="wtop">
+                <span className="wname">
+                  {FEATURES[k].label}
+                  {weights[k] !== startW[k] && <em className="up"> ↑ raised</em>}
+                </span>
+                <span className="wval">{Math.round((weights[k] / WEIGHT_CAP) * 100)}%</span>
+              </div>
+              <div className="wbar"><i style={{ width: `${Math.round((weights[k] / WEIGHT_CAP) * 100)}%` }} /></div>
+            </div>
+          ))}
+          {savedIds.length > 0 && (
+            <div className="rail-saved">
+              <h2>Saved</h2>
+              {savedIds.map((id) => (
+                <div className="saved-item" key={id}>♥ {LISTINGS.find((l) => l.listing_id === id)?.title}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <h2>What VISTA knows about {spec.name}</h2>
 
       <button className="taste-card as-button" onClick={onOpenTaste}>

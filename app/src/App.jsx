@@ -9,6 +9,7 @@ import GeneratingOverlay from './components/GeneratingOverlay.jsx'
 import TourView from './components/TourView.jsx'
 import { chat, getContext, updateMemory, deleteMemory, finishInterview, resetSession } from './api.js'
 import { rankListings } from './mock/interview.js'
+import * as discovery from './mock/discovery.js'
 import { SPECS } from './mock/data.js'
 
 // The spine (design 08): WELCOME ─► [GETTING TO KNOW YOU] ─► CHAT+RAIL ─►
@@ -43,6 +44,9 @@ export default function App() {
   // Specs distilled from THIS session's interview (step 4) — override the
   // seeded SPECS so the passport reflects the actual conversation.
   const [dynamicSpecs, setDynamicSpecs] = useState({})
+  // Discovery state per profile (design 10): weights/dismissed/saved + the
+  // current RankedSet. Local model for now; live endpoints follow (10b PARKED).
+  const [disc, setDisc] = useState({})
   const [detailId, setDetailId] = useState(null)
   const [tasteReturn, setTasteReturn] = useState('chat')
   const factSeq = useRef(0)
@@ -69,19 +73,25 @@ export default function App() {
     })
   }, [])
 
+  const freshDisc = useCallback((pid) => {
+    const state = discovery.initialState(pid)
+    return { state, set: discovery.discover(pid, state).set }
+  }, [])
+  const discCur = disc[profileId] ?? freshDisc(profileId)
+  const commitDisc = useCallback((next) => {
+    setDisc((prev) => ({ ...prev, [profileId]: next }))
+  }, [profileId])
+
   const sendMessage = useCallback(async (text) => {
     setMessages((prev) => [...prev, { role: 'user', text }])
     setThinking(true)
     try {
       const turn = await chat(profileId, text)
+      const isSet = turn.action?.type === 'recommend'
+      if (isSet) setDisc((prev) => ({ ...prev, [profileId]: prev[profileId] ?? freshDisc(profileId) }))
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'agent',
-          text: turn.reply,
-          action: turn.action?.type === 'recommend' ? turn.action : null,
-          newFacts: turn.new_facts ?? [],
-        },
+        { role: 'agent', text: turn.reply, set: isSet, newFacts: turn.new_facts ?? [] },
       ])
       setRecalledIds((turn.recalled ?? []).map((m) => m.id))
       addFacts(turn.new_facts)
@@ -89,7 +99,33 @@ export default function App() {
     } finally {
       setThinking(false)
     }
-  }, [profileId, addFacts])
+  }, [profileId, addFacts, freshDisc])
+
+  // ---- discovery reactions (design 10 §6) — always narrated -----------------
+  const onRefine = useCallback((r) => {
+    const { state, narration, set } = discovery.refine(discCur.state, r.bump, r.say)
+    commitDisc({ state, set })
+    setMessages((prev) => [...prev,
+      { role: 'user', text: r.label },
+      { role: 'narrate', text: narration },
+      { role: 'agent', set: true },
+    ])
+  }, [discCur, commitDisc])
+
+  const onDismiss = useCallback((id) => {
+    const { state, narration, set } = discovery.dismiss(discCur.state, id)
+    commitDisc({ state, set })
+    setMessages((prev) => [...prev, { role: 'narrate', text: narration }])
+  }, [discCur, commitDisc])
+
+  const onSaveListing = useCallback((id) => {
+    commitDisc({ ...discCur, state: discovery.toggleSave(discCur.state, id) })
+  }, [discCur, commitDisc])
+
+  const onMoreListings = useCallback(() => {
+    const { state, set } = discovery.showMore(discCur.state)
+    commitDisc({ state, set })
+  }, [discCur, commitDisc])
 
   const start = useCallback((text) => {
     setView('chat')
@@ -173,6 +209,8 @@ export default function App() {
     <MemoryRail
       profileId={profileId}
       spec={dynamicSpecs[profileId]}
+      weights={view === 'chat' && disc[profileId] ? discCur.set.weights : null}
+      savedIds={disc[profileId] ? discCur.state.saved : []}
       memories={memories}
       recalledIds={view === 'chat' ? recalledIds : []}
       nudges={nudges[profileId]}
@@ -225,8 +263,12 @@ export default function App() {
             messages={messages}
             profileId={profileId}
             thinking={thinking}
-            rankOrder={rankOrder}
+            discovery={{ set: discCur.set, saved: discCur.state.saved }}
             onSend={sendMessage}
+            onRefine={onRefine}
+            onDismiss={onDismiss}
+            onSaveListing={onSaveListing}
+            onMoreListings={onMoreListings}
             onOpenListing={(id) => { setDetailId(id); setView('detail') }}
             onGenerate={() => setGenerating(true)}
           />

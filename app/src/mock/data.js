@@ -87,6 +87,8 @@ export const LISTINGS = [
     sqft: 2410,
     hero: true,
     traits: ['bright', 'yard', 'walkable', 'office', 'hosting'],
+    features: {light: .9, walkable: .85, yard: .8, value: .5, character: .5, open: .8, quiet: .5},
+    hue: 28,
     rooms: ['living', 'kitchen', 'primary_bed', 'office', 'dining', 'exterior'],
     blurb:
       'A light-soaked corner lot two blocks off South Congress. Tall windows on the south and west faces, a real office with morning sun, and a fully fenced backyard under mature live oaks.',
@@ -112,6 +114,8 @@ export const LISTINGS = [
     sqft: 1980,
     hero: false,
     traits: ['character', 'walkable', 'cozy', 'yard'],
+    features: {light: .45, walkable: .85, yard: .7, value: .65, character: .95, open: .4, quiet: .6},
+    hue: 26,
     rooms: [],
     blurb:
       'A 1938 craftsman with its original trim and built-ins intact, a deep front porch, and a shaded backyard a short walk from Zilker Park.',
@@ -136,6 +140,8 @@ export const LISTINGS = [
     sqft: 2300,
     hero: false,
     traits: ['bright', 'turnkey', 'quiet', 'office'],
+    features: {light: .9, walkable: .65, yard: .55, value: .9, character: .2, open: .9, quiet: .6},
+    hue: 36,
     rooms: [],
     blurb:
       'A 2023 build on a quiet Mueller street — bright, efficient, zero projects. Dedicated office, small turfed yard, two-car garage.',
@@ -160,6 +166,8 @@ export const LISTINGS = [
     sqft: 1890,
     hero: false,
     traits: ['character', 'quiet', 'yard', 'cozy', 'parks'],
+    features: {light: .55, walkable: .8, yard: .85, value: .6, character: .9, open: .4, quiet: .8},
+    hue: 30,
     rooms: [],
     blurb:
       'A storybook 1920s bungalow under pecan trees: long-grain wood floors, a screened porch, and a deep lot on one of Hyde Park’s quietest streets.',
@@ -184,6 +192,8 @@ export const LISTINGS = [
     sqft: 1540,
     hero: false,
     traits: ['bright', 'walkable', 'hosting', 'downtown'],
+    features: {light: .95, walkable: .9, yard: .1, value: .35, character: .6, open: .85, quiet: .3},
+    hue: 38,
     rooms: [],
     blurb:
       'Double-height corner glazing, polished concrete, and a kitchen island built for a crowd — steps from East 6th’s restaurants.',
@@ -196,6 +206,60 @@ export const LISTINGS = [
       jake_v1: 'no outdoor space for Daisy',
       pablo_v1: 'concrete-and-glass runs cold',
     },
+  },
+  {
+    listing_id: 'alt5',
+    title: 'Family home in Circle C',
+    price: '$690,000',
+    location: 'Austin, TX',
+    neighborhood: 'Circle C',
+    beds: 4,
+    baths: 3,
+    sqft: 2560,
+    hero: false,
+    traits: ['yard', 'quiet', 'turnkey'],
+    features: {light: .6, walkable: .25, yard: .95, value: .95, character: .3, open: .7, quiet: .85},
+    hue: 34,
+    rooms: [],
+    blurb: 'Big family home on a quiet cul-de-sac; huge fenced yard, great value, car-dependent.',
+    neighborhood_note: '',
+    match_notes: {
+      'jake_v1': [
+            'huge yard for Daisy',
+            'quiet — trade-off: not walkable'
+      ],
+      'pablo_v1': [
+            'space to host',
+            'suburban polish — trade-off'
+      ]
+},
+  },
+  {
+    listing_id: 'alt6',
+    title: 'Classic in Clarksville',
+    price: '$960,000',
+    location: 'Austin, TX',
+    neighborhood: 'Clarksville',
+    beds: 3,
+    baths: 2,
+    sqft: 1690,
+    hero: false,
+    traits: ['character', 'walkable', 'cozy'],
+    features: {light: .65, walkable: .85, yard: .5, value: .25, character: .95, open: .45, quiet: .7},
+    hue: 26,
+    rooms: [],
+    blurb: 'Storied Clarksville classic; original character, walk-everywhere, premium price.',
+    neighborhood_note: '',
+    match_notes: {
+      'jake_v1': [
+            'walkable heart of old Austin',
+            'stretch on budget — trade-off'
+      ],
+      'pablo_v1': [
+            'the most character on the list',
+            'priced for it'
+      ]
+},
   },
 ]
 

@@ -81,7 +81,7 @@ def test_rank_unmet_must_sinks_and_ties_break_by_price():
     # dog answer -> yard is a must; alt4/alt2 (no yard) sink; yard ties price-asc
     res = interview.record_answer("test", [], "q_who", "Partner + a dog")
     order = [r["listing_id"] for r in res["ranked"]]
-    assert order == ["alt1", "alt3", "hero", "alt4", "alt2"]
+    assert order == ["alt5", "alt1", "alt3", "hero", "alt4", "alt2", "alt6"]
     top = res["ranked"][0]
     assert top["met"] == ["real yard"] and top["unmet"] == []
     sunk = res["ranked"][-1]
@@ -90,7 +90,7 @@ def test_rank_unmet_must_sinks_and_ties_break_by_price():
 
 def test_rank_with_no_answers_is_price_ascending():
     ranked = interview.rank_listings({}, [])
-    assert [r["listing_id"] for r in ranked] == ["alt4", "alt1", "alt3", "alt2", "hero"]
+    assert [r["listing_id"] for r in ranked] == ["alt5", "alt4", "alt1", "alt3", "alt2", "hero", "alt6"]
 
 
 def test_done_signal_jumps_to_catchall():

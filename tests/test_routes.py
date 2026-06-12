@@ -20,7 +20,8 @@ def test_health():
 def test_listings_passthrough():
     data = client.get("/api/listings").json()
     ids = [l["listing_id"] for l in data["listings"]]
-    assert ids == ["hero", "alt1", "alt2", "alt3", "alt4"]
+    assert ids == ["hero", "alt1", "alt2", "alt3", "alt4", "alt5", "alt6"]
+    assert all("features" in l for l in data["listings"])
     assert all("traits" in l for l in data["listings"])
 
 
@@ -48,7 +49,7 @@ def test_interview_surface():
     }).json()
     assert set(res) == {"new_facts", "profile_delta", "ranked", "next"}
     assert res["next"]["id"] == "q_dog"
-    assert [r["listing_id"] for r in res["ranked"]][0] == "alt1"
+    assert [r["listing_id"] for r in res["ranked"]][0] == "alt5"
 
 
 def test_reset():

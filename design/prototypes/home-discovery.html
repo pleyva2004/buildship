@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VISTA — Home Discovery</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg-page); overflow: hidden; }
+  #root { height: 100vh; }
+
+  .stage { height: 100vh; display: flex; flex-direction: column; }
+
+  /* topbar */
+  .top { display: flex; align-items: center; gap: 16px; padding: 14px 26px; border-bottom: 1px solid var(--border-hairline); background: var(--surface-card); flex-shrink: 0; z-index: 5; }
+  .top .wm { font-family: var(--font-serif); font-weight: 500; letter-spacing: var(--tracking-wordmark); font-size: 20px; }
+  .top .wm .dot { color: var(--accent); }
+  .top .crumb { font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; border-left: 1px solid var(--border-strong); padding-left: 16px; }
+  .top .spacer { flex: 1; }
+  .top .loc { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 7px; }
+  .top .loc svg { width: 15px; height: 15px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; }
+
+  .split { flex: 1; display: grid; grid-template-columns: minmax(0,1fr) 312px; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  @media (max-width: 880px) { .split { grid-template-columns: 1fr; } .rail { display: none; } }
+
+  /* ===== chat column ===== */
+  .chatcol { display: flex; flex-direction: column; min-height: 0; }
+  .thread { flex: 1; min-height: 0; overflow-y: auto; padding: 26px clamp(20px, 5vw, 56px) 10px; }
+  .thread-inner { max-width: 760px; margin: 0 auto; }
+
+  .bubble { padding: 13px 18px; border-radius: var(--radius-md); margin-bottom: 14px; line-height: var(--leading-normal); font-size: var(--text-body); max-width: 80%; opacity: 1; animation: rise var(--dur-base) var(--ease-soft); }
+  @keyframes rise { from { transform: translateY(8px); } to { transform: none; } }
+  .bubble.agent { background: var(--surface-card); box-shadow: var(--shadow-sm); border-bottom-left-radius: 4px; }
+  .bubble.user { background: var(--accent); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+  .bubble.narrate { background: transparent; box-shadow: none; padding: 4px 2px 10px; color: var(--text-secondary); font-size: 14px; max-width: 100%; }
+  .bubble.narrate b { color: var(--text-primary); font-weight: 600; }
+  .bubble.narrate .lead-in { display: inline-flex; align-items: center; gap: 7px; }
+  .bubble.narrate .lead-in svg { width: 15px; height: 15px; stroke: var(--accent); fill: none; stroke-width: 2; }
+
+  /* curated set */
+  .setintro { font-size: 14px; color: var(--text-secondary); margin: 2px 0 14px; max-width: 90%; line-height: 1.5; }
+  .setintro b { color: var(--text-primary); font-weight: 600; }
+  .cardset { display: flex; flex-direction: column; gap: 14px; margin-bottom: 8px; }
+
+  /* lead card */
+  .card { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); position: relative; transition: box-shadow var(--dur-fast) var(--ease-soft), transform var(--dur-fast) var(--ease-soft); opacity: 1; animation: cardin var(--dur-base) var(--ease-soft); }
+  @keyframes cardin { from { transform: translateY(10px); } to { transform: none; } }
+  .card:hover { box-shadow: var(--shadow-md); }
+  .card.dismissing { animation: cardout var(--dur-base) var(--ease-soft) forwards; }
+  @keyframes cardout { to { transform: scale(0.97); opacity: 0; } }
+
+  .badge { position: absolute; top: 12px; left: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; padding: 6px 11px; border-radius: var(--radius-pill); background: rgba(255,253,249,0.94); color: var(--accent-hover); box-shadow: var(--shadow-sm); }
+  .badge svg { width: 13px; height: 13px; stroke: var(--accent); fill: none; stroke-width: 2; }
+  .badge.moved { background: var(--match-wash); color: var(--match-text); }
+  .badge.moved svg { stroke: var(--match-text); }
+  .badge.fresh { background: var(--accent); color: #fff; }
+  .badge.fresh svg { stroke: #fff; }
+
+  .heart { position: absolute; top: 12px; right: 12px; z-index: 3; width: 30px; height: 30px; border-radius: 999px; background: rgba(255,253,249,0.92); display: grid; place-items: center; box-shadow: var(--shadow-sm); }
+  .heart svg { width: 15px; height: 15px; stroke: var(--accent); fill: none; stroke-width: 1.9; transition: fill var(--dur-fast); }
+  .heart.on svg { fill: var(--accent); }
+
+  /* LEAD layout: photo left, body right */
+  .card.lead { display: grid; grid-template-columns: 240px 1fr; }
+  @media (max-width: 620px) { .card.lead { grid-template-columns: 1fr; } }
+  .photo { position: relative; background-size: cover; background-position: center; min-height: 170px; }
+  .photo .warm { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(213,160,110,0.0), rgba(120,80,45,0.18)); }
+  .photo .teaser { position: absolute; left: 10px; bottom: 10px; z-index: 2; font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; background: rgba(43,39,34,0.74); color: #fff; padding: 5px 10px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 6px; }
+  .photo .teaser::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg,#d8b58c,#9d6f4a); box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+
+  .cbody { padding: 16px 18px 16px; display: flex; flex-direction: column; }
+  .crow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .cname { font-family: var(--font-serif); font-weight: 500; font-size: 18px; letter-spacing: -0.01em; color: var(--text-primary); line-height: 1.2; }
+  .cprice { font-family: var(--font-serif); font-weight: 600; font-size: 17px; color: var(--text-primary); white-space: nowrap; }
+  .cmeta { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+
+  .why { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+  .chip { font-size: 11.5px; font-weight: 500; padding: 5px 10px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 6px; }
+  .chip.fit { background: var(--match-wash); color: var(--match-text); }
+  .chip.fit svg { width: 11px; height: 11px; stroke: var(--match-text); fill: none; stroke-width: 2.4; }
+  .chip.trade { background: var(--surface-deep); color: var(--text-secondary); }
+  .chip.trade::before { content: '~'; font-weight: 700; opacity: 0.6; }
+
+  .cactions { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+  .btn { font-size: 13px; font-weight: 600; font-family: var(--font-sans); border-radius: var(--radius-pill); padding: 10px 15px; transition: all var(--dur-fast) var(--ease-soft); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-hairline); }
+  .btn.ghost:hover { color: var(--text-primary); border-color: var(--border-strong); }
+  .btn.tiny { padding: 8px 12px; font-size: 12px; }
+  .dismiss { margin-left: auto; background: transparent; color: var(--text-muted); font-size: 12px; padding: 8px 6px; display: inline-flex; align-items: center; gap: 5px; }
+  .dismiss:hover { color: var(--accent); }
+  .dismiss svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* ALTERNATE layout: compact row */
+  .card.alt { display: grid; grid-template-columns: 120px 1fr; }
+  .card.alt .photo { min-height: 116px; }
+  .card.alt .cbody { padding: 12px 14px; }
+  .card.alt .cname { font-size: 15px; }
+  .card.alt .cprice { font-size: 14px; }
+  .card.alt .badge { top: 9px; left: 9px; font-size: 10px; padding: 4px 8px; }
+  .card.alt .heart { top: 9px; right: 9px; width: 26px; height: 26px; }
+
+  .morebtn { align-self: flex-start; margin-top: 4px; background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); font-size: 13px; font-weight: 500; padding: 11px 18px; border-radius: var(--radius-pill); }
+  .morebtn:hover { color: var(--accent); border-color: var(--clay-300); }
+
+  /* refine zone */
+  .inputzone { padding: 12px clamp(20px, 5vw, 56px) 20px; flex-shrink: 0; border-top: 1px solid var(--border-hairline); background: var(--surface-card); }
+  .inputzone .inner { max-width: 760px; margin: 0 auto; }
+  .reflabel { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 9px; }
+  .refchips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .refchips button { font-size: 13px; font-family: var(--font-sans); font-weight: 500; padding: 9px 14px; border-radius: var(--radius-pill); background: var(--bg-page); border: 1px solid var(--border-hairline); color: var(--text-secondary); display: inline-flex; align-items: center; gap: 7px; transition: all var(--dur-fast) var(--ease-soft); }
+  .refchips button:hover { border-color: var(--clay-300); color: var(--accent-hover); transform: translateY(-1px); }
+  .refchips button svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .composer { display: flex; gap: 10px; }
+  .composer input { flex: 1; padding: 13px 18px; border-radius: var(--radius-pill); border: 1px solid var(--border-hairline); background: var(--bg-page); font-size: var(--text-body); font-family: var(--font-sans); color: var(--text-primary); outline: none; }
+  .composer input:focus { border-color: var(--clay-300); box-shadow: var(--focus-ring); }
+  .composer .send { width: 48px; border-radius: 999px; background: var(--accent); color: #fff; display: grid; place-items: center; }
+  .composer .send:hover { background: var(--accent-hover); }
+  .composer .send svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* ===== rail ===== */
+  .rail { border-left: 1px solid var(--border-hairline); background: rgba(255,253,249,0.55); padding: 22px 22px; overflow-y: auto; }
+  .rail h3 { font-size: 11px; letter-spacing: var(--tracking-overline); text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin: 0 0 4px; }
+  .rail .sub { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.4; }
+  .weight { margin-bottom: 14px; }
+  .weight .wtop { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .weight .wname { font-size: 13px; color: var(--text-primary); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .weight .wname .up { font-size: 10px; color: var(--match-text); font-weight: 700; }
+  .weight .wval { font-size: 11px; color: var(--text-muted); }
+  .bar { height: 7px; border-radius: 999px; background: var(--surface-deep); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--clay-300), var(--accent)); transition: width var(--dur-slow) var(--ease-soft); }
+  .rail .note { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-hairline); font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .rail .saved { margin-top: 14px; }
+  .rail .saved .si { font-size: 12.5px; color: var(--text-secondary); padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+  .rail .saved .si svg { width: 13px; height: 13px; stroke: var(--accent); fill: var(--accent); }
+
+  .restart { position: fixed; bottom: 14px; left: 14px; z-index: 60; font-size: 11.5px; color: var(--text-muted); background: var(--surface-card); border: 1px solid var(--border-hairline); padding: 7px 12px; border-radius: 999px; box-shadow: var(--shadow-sm); }
+  .restart:hover { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const Ic = {
+  send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/>,
+  pin: <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>,
+  star: <path d="M12 2l2.6 6.6L21 9.6l-5 4.3 1.6 6.6L12 17l-5.6 3.5L8 13.9l-5-4.3 6.4-1z"/>,
+  check: <path d="M20 6 9 17l-5-5"/>,
+  heart: <path d="M12 21s-7-4.35-9.5-8.5C.5 9 2.5 5 6 5c2 0 3.5 1.5 4 2.5C10.5 6.5 12 5 14 5c3.5 0 5.5 4 3.5 7.5C19 16.65 12 21 12 21z"/>,
+  x: <path d="M18 6 6 18M6 6l12 12"/>,
+  arrow: <path d="M12 19V5M5 12l7-7 7 7"/>,
+  spark: <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>,
+  sun: <path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>,
+  tree: <path d="M12 2 6 11h3l-4 6h14l-4-6h3L12 2zM12 17v5"/>,
+  walk: <path d="M13 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM9 21l2-5 1-3 3 3v5M7 12l3-4 4 1 3 3"/>,
+  tag: <path d="M20 12l-8 8-9-9V3h8l9 9zM7.5 7.5h.01"/>,
+  gem: <path d="M6 3h12l3 6-9 12L3 9l3-6zM3 9h18M9 3l3 6 3-6M12 9v12"/>,
+};
+
+// ---- feature model: each listing scored against weighted profile priorities ----
+const FEATURES = {
+  light:    { label: "morning light", icon: Ic.sun,  fit: "South-facing rooms" },
+  walkable: { label: "walkable",      icon: Ic.walk, fit: "Walk to cafés & parks" },
+  yard:     { label: "yard",          icon: Ic.tree, fit: "Fenced yard for the dog" },
+  value:    { label: "value",         icon: Ic.tag,  fit: "Well under budget" },
+  character:{ label: "character",     icon: Ic.gem,  fit: "Original character" },
+  open:     { label: "open kitchen",  icon: Ic.gem,  fit: "Open kitchen to host" },
+  quiet:    { label: "quiet street",  icon: Ic.tree, fit: "Quiet, leafy street" },
+};
+// tradeoff phrasing when a listing is WEAK on a weighted priority
+const TRADE = {
+  light: "fewer south windows", walkable: "more car-dependent", yard: "smaller yard",
+  value: "above budget", character: "newer build", open: "closed-off kitchen", quiet: "busier street",
+};
+
+// hue tuned per listing so photos read warm/cool distinctly
+const LISTINGS = [
+  { id:"travis", name:"Bungalow in Travis Heights", hood:"Travis Heights", price:"$845k", spec:"3 bd · 2 ba · 1,780 sqft", hue:28,
+    f:{light:.9, walkable:.85, yard:.6, value:.55, character:.85, open:.5, quiet:.5} },
+  { id:"bouldin", name:"Modern off South 1st", hood:"Bouldin Creek", price:"$880k", spec:"3 bd · 2 ba · 1,650 sqft", hue:32,
+    f:{light:.95, walkable:.9, yard:.3, value:.45, character:.3, open:.8, quiet:.4} },
+  { id:"mueller", name:"New build in Mueller", hood:"Mueller", price:"$760k", spec:"4 bd · 3 ba · 2,100 sqft", hue:36,
+    f:{light:.9, walkable:.65, yard:.7, value:.9, character:.2, open:.9, quiet:.6} },
+  { id:"hyde", name:"Cottage in Hyde Park", hood:"Hyde Park", price:"$815k", spec:"2 bd · 2 ba · 1,420 sqft", hue:30,
+    f:{light:.6, walkable:.9, yard:.4, value:.6, character:.9, open:.4, quiet:.75} },
+  { id:"east", name:"Loft in East Austin", hood:"East Austin", price:"$905k", spec:"2 bd · 2 ba · 1,500 sqft", hue:38,
+    f:{light:.9, walkable:.9, yard:.1, value:.3, character:.6, open:.85, quiet:.3} },
+  { id:"circlec", name:"Family home in Circle C", hood:"Circle C", price:"$690k", spec:"4 bd · 3 ba · 2,560 sqft", hue:34,
+    f:{light:.6, walkable:.25, yard:.95, value:.95, character:.3, open:.7, quiet:.85} },
+  { id:"clarksville", name:"Classic in Clarksville", hood:"Clarksville", price:"$960k", spec:"3 bd · 2 ba · 1,690 sqft", hue:26,
+    f:{light:.65, walkable:.85, yard:.5, value:.25, character:.95, open:.45, quiet:.7} },
+];
+
+function photoBg(hue){
+  return `linear-gradient(150deg, hsl(${hue} 42% 72%), hsl(${hue-6} 38% 58%) 55%, hsl(${hue-10} 34% 42%))`;
+}
+
+// profile-seeded starting weights (Jake: bright, walkable, yard for dog, sensible budget)
+const START_W = { light:1.0, walkable:0.8, yard:0.7, value:0.5, character:0.4, open:0.35, quiet:0.3 };
+
+const REFINES = [
+  { id:"light",    label:"Brighter & airier",     icon:Ic.sun,  bump:"light",    say:"more natural light" },
+  { id:"walkable", label:"Closer in / walkable",  icon:Ic.walk, bump:"walkable", say:"walkability" },
+  { id:"yard",     label:"Bigger yard for the dog",icon:Ic.tree, bump:"yard",     say:"outdoor space" },
+  { id:"value",    label:"Better value",          icon:Ic.tag,  bump:"value",    say:"value" },
+  { id:"character",label:"More character",        icon:Ic.gem,  bump:"character",say:"character & charm" },
+  { id:"quiet",    label:"Quieter street",        icon:Ic.tree, bump:"quiet",    say:"a quieter street" },
+];
+
+function score(l, w){ let s=0,t=0; for(const k in w){ s += (l.f[k]||0)*w[k]; t += w[k]; } return s/t; }
+function rank(w, dismissed){
+  return LISTINGS.filter(l=>!dismissed.includes(l.id))
+    .map(l=>({ id:l.id, s:score(l,w) }))
+    .sort((a,b)=> b.s-a.s)
+    .map(x=>x.id);
+}
+// pick the chips: top weighted features this listing is strong on
+function fitChips(l, w, n){
+  return Object.keys(w)
+    .filter(k => (l.f[k]||0) >= 0.7)
+    .sort((a,b)=> (l.f[b]*w[b]) - (l.f[a]*w[a]))
+    .slice(0, n)
+    .map(k => FEATURES[k].fit);
+}
+function tradeChip(l, w){
+  // the most heavily-weighted priority this listing is weakest on
+  const k = Object.keys(w).sort((a,b)=> ((1-(l.f[a]||0))*w[a]) < ((1-(l.f[b]||0))*w[b]) ? 1 : -1)[0];
+  return (l.f[k]||0) < 0.55 ? TRADE[k] : null;
+}
+
+function Card({ l, w, rankIdx, lead, badge, saved, onSave, onDismiss, dismissing }){
+  const data = LISTINGS.find(x=>x.id===l);
+  const chips = fitChips(data, w, lead?3:2);
+  const trade = tradeChip(data, w);
+  return (
+    <div className={"card " + (lead?"lead":"alt") + (dismissing?" dismissing":"")}>
+      <div className="photo" style={{ background: photoBg(data.hue) }}>
+        <div className="warm"></div>
+        {badge==="moved" && <span className="badge moved"><svg viewBox="0 0 24 24">{Ic.arrow}</svg>Moved up</span>}
+        {badge==="fresh" && <span className="badge fresh"><svg viewBox="0 0 24 24">{Ic.spark}</svg>New find</span>}
+        {badge==="top" && lead && <span className="badge"><svg viewBox="0 0 24 24">{Ic.star}</svg>Top pick for you</span>}
+        <button className={"heart"+(saved?" on":"")} onClick={onSave}><svg viewBox="0 0 24 24">{Ic.heart}</svg></button>
+        {lead && <span className="teaser">See it in your style</span>}
+      </div>
+      <div className="cbody">
+        <div className="crow">
+          <div className="cname">{data.name}</div>
+          <div className="cprice">{data.price}</div>
+        </div>
+        <div className="cmeta">{data.hood} · {data.spec}</div>
+        <div className="why">
+          {chips.map(c => <span className="chip fit" key={c}><svg viewBox="0 0 24 24">{Ic.check}</svg>{c}</span>)}
+          {trade && <span className="chip trade">{trade}</span>}
+        </div>
+        <div className="cactions">
+          {lead
+            ? <><button className="btn primary">See it in your style</button><button className="btn ghost tiny">View home</button></>
+            : <button className="btn ghost tiny">View home</button>}
+          <button className="dismiss" onClick={onDismiss}><svg viewBox="0 0 24 24">{Ic.x}</svg>Not for me</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [w, setW] = useState(START_W);
+  const [dismissed, setDismissed] = useState([]);
+  const [saved, setSaved] = useState([]);
+  const [showMore, setShowMore] = useState(false);
+  const [messages, setMessages] = useState([
+    { type:"agent", text:"Based on everything you told me, here are the homes that fit you best right now." },
+    { type:"set" },
+  ]);
+  const [prevTop, setPrevTop] = useState(rank(START_W, []));
+  const [badges, setBadges] = useState({}); // id -> 'moved'|'fresh'
+  const threadRef = useRef(null);
+
+  const ordered = rank(w, dismissed);
+  const visibleCount = showMore ? 5 : 3;
+  const visible = ordered.slice(0, visibleCount);
+
+  useEffect(()=>{ if(threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; }, [messages, showMore]);
+
+  const applyRefine = (label, bumpKey, say) => {
+    const beforeTop = ordered.slice(0,3);
+    const nextW = { ...w, [bumpKey]: Math.min(1.4, (w[bumpKey]||0) + 0.55) };
+    const afterAll = rank(nextW, dismissed);
+    const afterTop = afterAll.slice(0,3);
+
+    // diff for badges
+    const nb = {};
+    afterTop.forEach((id, i) => {
+      const was = beforeTop.indexOf(id);
+      if (was === -1) nb[id] = "fresh";
+      else if (was > i) nb[id] = "moved";
+    });
+
+    // narration
+    const newLead = LISTINGS.find(x=>x.id===afterTop[0]).name;
+    const leadChanged = afterTop[0] !== beforeTop[0];
+    const entered = afterTop.find(id => !beforeTop.includes(id));
+    const enteredName = entered ? LISTINGS.find(x=>x.id===entered).name : null;
+    let narr = `Got it — weighting **${say}** higher. `;
+    if (leadChanged) narr += `**${newLead}** moves to the top`;
+    else narr += `**${newLead}** still leads`;
+    if (enteredName) narr += `, and **${enteredName}** comes into the mix.`;
+    else narr += `, with the order reshuffled.`;
+
+    setMessages(m => [
+      ...m,
+      { type:"user", text: label },
+      { type:"narrate", text: narr },
+      { type:"set" },
+    ]);
+    setPrevTop(beforeTop);
+    setBadges(nb);
+    setW(nextW);
+    setShowMore(false);
+    // clear badges after a beat
+    setTimeout(()=> setBadges({}), 4000);
+  };
+
+  const onDismiss = (id) => {
+    const name = LISTINGS.find(x=>x.id===id).name;
+    setDismissed(d => [...d, id]);
+    const remaining = rank(w, [...dismissed, id]);
+    const filler = remaining.slice(2,3)[0];
+    const fillerName = filler ? LISTINGS.find(x=>x.id===filler).name : null;
+    setMessages(m => [
+      ...m,
+      { type:"narrate", text: `Noted — I'll steer away from places like that.${fillerName ? ` **${fillerName}** takes its spot.` : ""}` },
+    ]);
+    if (filler) { setBadges({ [filler]:"fresh" }); setTimeout(()=>setBadges({}), 4000); }
+  };
+
+  const toggleSave = (id) => setSaved(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id]);
+
+  // weight bars (top 5 by value)
+  const weightRows = Object.keys(w).sort((a,b)=>w[b]-w[a]).slice(0,5);
+  const maxW = Math.max(...Object.values(w));
+  const lastBumped = Object.keys(w).find(k => w[k] !== START_W[k] && w[k] === Math.max(...Object.keys(w).filter(x=>w[x]!==START_W[x]).map(x=>w[x])));
+
+  let setCounter = 0;
+
+  return (
+    <div className="stage">
+      <header className="top">
+        <span className="wm">VISTA<span className="dot">.</span></span>
+        <span className="crumb">Finding your home</span>
+        <span className="spacer"></span>
+        <span className="loc"><svg viewBox="0 0 24 24">{Ic.pin}</svg>Austin, TX</span>
+      </header>
+
+      <div className="split">
+        <section className="chatcol">
+          <div className="thread" ref={threadRef}>
+            <div className="thread-inner">
+              {messages.map((m, i) => {
+                if (m.type === "agent") return <div className="bubble agent" key={i}>{m.text}</div>;
+                if (m.type === "user") return <div className="bubble user" key={i}>{m.text}</div>;
+                if (m.type === "narrate") return (
+                  <div className="bubble narrate" key={i}>
+                    <span className="lead-in"><svg viewBox="0 0 24 24">{Ic.spark}</svg></span>{" "}
+                    <span dangerouslySetInnerHTML={{__html: m.text.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}} />
+                  </div>
+                );
+                if (m.type === "set") {
+                  // only the LAST set is live; earlier sets render as the state at that time is complex —
+                  // for the prototype we render the live set only on the final occurrence
+                  const isLast = i === messages.length - 1 || !messages.slice(i+1).some(x=>x.type==="set");
+                  if (!isLast) return <div className="setintro" key={i} style={{opacity:0.5}}>↑ updated below</div>;
+                  return (
+                    <div key={i}>
+                      <div className="setintro">
+                        <b>{visible.length} homes</b> that fit everything so far — my top pick first. Tell me what to change and I'll re-rank live.
+                      </div>
+                      <div className="cardset">
+                        {visible.map((id, idx) => (
+                          <Card key={id} l={id} w={w} rankIdx={idx} lead={idx===0}
+                            badge={idx===0 ? (badges[id] || "top") : badges[id]}
+                            saved={saved.includes(id)}
+                            onSave={()=>toggleSave(id)}
+                            onDismiss={()=>onDismiss(id)} />
+                        ))}
+                        {!showMore && ordered.length > 3 &&
+                          <button className="morebtn" onClick={()=>setShowMore(true)}>See a few more like these →</button>}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          </div>
+
+          <div className="inputzone">
+            <div className="inner">
+              <div className="reflabel">Tell VISTA what to change</div>
+              <div className="refchips">
+                {REFINES.map(r => (
+                  <button key={r.id} onClick={()=>applyRefine(r.label, r.bump, r.say)}>
+                    <svg viewBox="0 0 24 24">{r.icon}</svg>{r.label}
+                  </button>
+                ))}
+              </div>
+              <div className="composer">
+                <input placeholder="e.g. “somewhere quieter, and closer to a park” — or react to a home above" />
+                <button className="send"><svg viewBox="0 0 24 24">{Ic.send}</svg></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside className="rail">
+          <h3>What VISTA is weighting</h3>
+          <div className="sub">Your priorities, learned from the conversation. They shift as you react.</div>
+          {weightRows.map(k => (
+            <div className="weight" key={k}>
+              <div className="wtop">
+                <div className="wname">{FEATURES[k].label}{w[k] !== START_W[k] && <span className="up">↑ raised</span>}</div>
+                <div className="wval">{Math.round((w[k]/1.4)*100)}%</div>
+              </div>
+              <div className="bar"><i style={{ width: Math.round((w[k]/1.4)*100)+"%" }}></i></div>
+            </div>
+          ))}
+          {saved.length > 0 && (
+            <div className="saved">
+              <h3 style={{marginTop:18}}>Saved</h3>
+              {saved.map(id => (
+                <div className="si" key={id}><svg viewBox="0 0 24 24">{Ic.heart}</svg>{LISTINGS.find(x=>x.id===id).name}</div>
+              ))}
+            </div>
+          )}
+          <div className="note">No filters, no endless grid — just a few homes VISTA chose, re-ranked the moment your taste shifts.</div>
+        </aside>
+      </div>
+
+      <button className="restart" onClick={()=>{ setW(START_W); setDismissed([]); setSaved([]); setShowMore(false); setBadges({}); setMessages([{type:"agent",text:"Based on everything you told me, here are the homes that fit you best right now."},{type:"set"}]); }}>↺ Restart demo</button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

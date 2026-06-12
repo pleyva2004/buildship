@@ -122,7 +122,8 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | Chat memory tools (`save_memory`/`revise_memory` — learns + revises during property talk) | mock returns `new_facts: []` (app twin extracts locally) | ✅ live-tested: revision + new fact + re-recommendation in one turn |
 | Guest profile (`guest_v1` — zero seeded memories, cold-start testing) | ✅ verified in browser | ✅ empty mem0 user |
 | `finish` → style_spec → dynamic taste passport (design 09 step 4) | ✅ deterministic, parity-tested | ✅ tested — spec genuinely derived from the conversation |
-| Smoke tests (`make test`, 36 tests) | ✅ all passing | n/a — tests force mock |
+| Home discovery (design 10): curated sets, narrated re-rank, weights rail, dismiss/save/see-more | ✅ Playwright-verified; 7-listing pool with feature vectors | local model for now — live `discover/react/refine` endpoints pending (10b) |
+| Smoke tests (`make test`, 40 tests) | ✅ all passing | n/a — tests force mock |
 
 > The interview topbar shows a **brain badge** (`live` / `scripted fallback` / `offline ·
 > local mock`) from `/api/health` — if questions ever look canned, check the badge first.

@@ -705,3 +705,80 @@ button {
 .iv-brain.live { background: var(--moss); color: #fff; }
 .iv-wrap { color: var(--clay-deep); font-weight: 600; }
 .iv-wrap:hover { color: var(--clay); }
+
+/* ---------- 06 home discovery (design 10) ---------- */
+.setintro { font-size: 14px; color: var(--ink-soft); margin: 2px 0 14px; line-height: 1.5; }
+.setintro b { color: var(--ink); font-weight: 600; }
+.setintro.stale { opacity: 0.5; margin: 4px 0 10px; }
+.cardset { display: flex; flex-direction: column; gap: 14px; margin-bottom: 10px; }
+
+.dcard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); position: relative; animation: cardin 0.4s ease; }
+@keyframes cardin { from { transform: translateY(10px); } to { transform: none; } }
+.dcard.lead { display: grid; grid-template-columns: 240px 1fr; }
+.dcard.alt { display: grid; grid-template-columns: 120px 1fr; }
+@media (max-width: 620px) { .dcard.lead { grid-template-columns: 1fr; } }
+.dphoto { position: relative; min-height: 170px; background-size: cover; background-position: center; }
+.dcard.alt .dphoto { min-height: 116px; }
+.dphoto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dphoto .teaser {
+  position: absolute; left: 10px; bottom: 10px; z-index: 2; font-size: 10.5px; font-weight: 600;
+  background: rgba(43, 39, 34, 0.74); color: #fff; padding: 5px 10px; border-radius: 999px;
+}
+.dbadge {
+  position: absolute; top: 12px; left: 12px; z-index: 3; font-size: 11px; font-weight: 600;
+  padding: 5px 11px; border-radius: 999px; background: rgba(255, 253, 249, 0.94);
+  color: var(--clay-deep); box-shadow: var(--shadow);
+}
+.dbadge.moved { background: #e6ecdf; color: #4e5d43; }
+.dbadge.fresh { background: var(--clay); color: #fff; }
+.heart {
+  position: absolute; top: 10px; right: 10px; z-index: 3; width: 30px; height: 30px;
+  border-radius: 999px; background: rgba(255, 253, 249, 0.92); color: var(--clay);
+  display: grid; place-items: center; box-shadow: var(--shadow); font-size: 14px;
+}
+.heart.on { background: var(--clay); color: #fff; }
+.dbody { padding: 14px 16px; display: flex; flex-direction: column; }
+.dcard.alt .dbody { padding: 11px 14px; }
+.drow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dname { font-size: 18px; line-height: 1.2; }
+.dcard.alt .dname { font-size: 15px; }
+.dprice { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.dmeta { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+.dwhy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.dchip { font-size: 11.5px; font-weight: 500; padding: 5px 10px; border-radius: 999px; }
+.dchip.fit { background: #e6ecdf; color: #4e5d43; }
+.dchip.trade { background: var(--sand-deep); color: var(--ink-soft); }
+.dchip.trade::before { content: '~ '; font-weight: 700; opacity: 0.6; }
+.dactions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+.btn-primary { background: var(--clay); color: #fff; font-size: 13px; font-weight: 600; padding: 9px 14px; }
+.btn-primary:hover { background: var(--clay-deep); }
+.btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); font-size: 12px; padding: 8px 12px; }
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-soft); }
+.ddismiss { margin-left: auto; background: transparent; color: var(--ink-soft); font-size: 12px; padding: 8px 4px; }
+.ddismiss:hover { color: var(--clay-deep); }
+.morebtn {
+  align-self: flex-start; background: transparent; border: 1px dashed var(--line);
+  color: var(--ink-soft); font-size: 13px; padding: 10px 18px; border-radius: 999px;
+}
+.morebtn:hover { color: var(--clay-deep); border-color: var(--clay); }
+
+.bubble.narrate { background: transparent; box-shadow: none; color: var(--ink-soft); font-size: 14px; max-width: 100%; padding: 2px 2px 8px; }
+.bubble.narrate b { color: var(--ink); font-weight: 600; }
+
+.refchips { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 2px; }
+.refchips button {
+  font-size: 13px; font-weight: 500; padding: 8px 14px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line); color: var(--ink-soft);
+  transition: all 0.2s ease;
+}
+.refchips button:hover { border-color: var(--clay); color: var(--clay-deep); transform: translateY(-1px); }
+
+/* merged rail blocks (design 10b §4) */
+.rail-weights { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 10px; }
+.weight .wtop { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.weight .wname { font-size: 13px; font-weight: 500; }
+.weight .wname .up { font-size: 10px; color: #4e5d43; font-weight: 700; font-style: normal; }
+.weight .wval { font-size: 11px; color: var(--ink-soft); }
+.wbar { height: 7px; border-radius: 999px; background: var(--sand-deep); overflow: hidden; }
+.wbar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #d8b58c, var(--clay)); transition: width 0.5s ease; }
+.rail-saved .saved-item { font-size: 12.5px; color: var(--ink-soft); padding: 4px 0; }

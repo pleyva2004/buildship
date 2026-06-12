@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import ListingCards from './ListingCards.jsx'
+import CuratedSet from './CuratedSet.jsx'
+import { REFINES } from '../mock/discovery.js'
 
-// Act 2 — the conversation column. Messages may carry an inline card payload
-// (action.recommend) so discovery happens INSIDE the conversation. Design 08
-// (03): extracted facts surface as "saved to memory" chips that mirror the
-// fact animating into the rail.
-export default function ChatView({ messages, profileId, thinking, rankOrder, onSend, onOpenListing, onGenerate }) {
+// Act 2 — the conversation column, now the discovery surface (design 10):
+// curated sets render inline as VISTA's responses; reactions and refine chips
+// re-rank live, ALWAYS narrated (sparkle bubbles). Only the latest set is live;
+// earlier ones collapse to "updated below" (prototype behavior).
+export default function ChatView({
+  messages, profileId, thinking, discovery, onSend,
+  onRefine, onDismiss, onSaveListing, onMoreListings, onOpenListing, onGenerate,
+}) {
   const [draft, setDraft] = useState('')
   const endRef = useRef(null)
 
@@ -13,12 +17,21 @@ export default function ChatView({ messages, profileId, thinking, rankOrder, onS
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, thinking])
 
+  const lastSetIdx = messages.reduce((acc, m, i) => (m.set ? i : acc), -1)
+  const hasSet = lastSetIdx !== -1
+
   return (
     <div className="chat-col">
       <div className="thread">
         {messages.map((m, i) => (
           <div key={i}>
-            <div className={`bubble ${m.role}`}>{m.text}</div>
+            {m.role === 'narrate' ? (
+              <div className="bubble narrate">✦ <span dangerouslySetInnerHTML={{
+                __html: m.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'),
+              }} /></div>
+            ) : (
+              m.text && <div className={`bubble ${m.role}`}>{m.text}</div>
+            )}
             {m.newFacts?.length > 0 && (
               <div className="saved-facts">
                 {m.newFacts.map((f) => (
@@ -26,20 +39,32 @@ export default function ChatView({ messages, profileId, thinking, rankOrder, onS
                 ))}
               </div>
             )}
-            {m.action?.type === 'recommend' && (
-              <ListingCards
-                listingIds={m.action.listing_ids}
-                profileId={profileId}
-                rankOrder={rankOrder}
+            {m.set && (i === lastSetIdx ? (
+              <CuratedSet
+                set={discovery.set}
+                saved={discovery.saved}
+                onSave={onSaveListing}
+                onDismiss={onDismiss}
+                onMore={onMoreListings}
                 onOpen={onOpenListing}
                 onGenerate={onGenerate}
               />
-            )}
+            ) : (
+              <p className="setintro stale">↑ updated below</p>
+            ))}
           </div>
         ))}
         {thinking && <div className="bubble agent thinking">…</div>}
         <div ref={endRef} />
       </div>
+
+      {hasSet && (
+        <div className="refchips">
+          {REFINES.map((r) => (
+            <button key={r.id} onClick={() => onRefine(r)}>{r.label}</button>
+          ))}
+        </div>
+      )}
       <form
         className="composer"
         onSubmit={(e) => {
@@ -52,7 +77,7 @@ export default function ChatView({ messages, profileId, thinking, rankOrder, onS
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Reply to VISTA…"
+          placeholder={hasSet ? '“somewhere quieter, closer to a park” — or react to a home above' : 'Reply to VISTA…'}
         />
         <button className="cta" type="submit">Send</button>
       </form>
