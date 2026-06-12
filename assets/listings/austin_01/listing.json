@@ -1,0 +1,11 @@
+{
+  "listing_id": "austin_01",
+  "source_url": "https://www.zillow.com/homedetails/1724-Canon-Yeomans-Trl-Austin-TX-78748/29513162_zpid/",
+  "address": "1724 Canon Yeomans Trl",
+  "city": "Austin, TX 78748",
+  "price": "350000",
+  "beds": "3",
+  "baths": "2.5",
+  "sqft": "1422",
+  "rooms_available": ["exterior", "living", "kitchen", "bedroom", "bathroom", "dining", "office", "outdoor"]
+}
