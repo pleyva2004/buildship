@@ -8,33 +8,81 @@
 
 import { LISTINGS } from './data.js'
 
-export const INTERVIEW_LENGTH = 6
+export const INTERVIEW_LENGTH = 7
 
 // trait weights an answer contributes; `must` marks hard filters whose
 // met/unmet state renders as chips (never a numeric score — design 08 §1).
+const BUDGET_RE = /\$?(\d{3,4})\s*k?(?:\s*[-–to]+\s*\$?(\d{3,4})\s*k?)?/i
+
+const HOODS_RE = /travis heights|zilker|mueller|hyde park|east austin|east 6th|circle c|clarksville/i
+
+function fxWhere(raw) {
+  const a = raw.toLowerCase()
+  const out = { weights: {}, must: [], facts: [] }
+  if (/close in|central|downtown|walkable/.test(a)) out.weights.walkable = 2
+  if (/suburb|quieter|circle c/.test(a)) out.weights.quiet = 2
+  const hood = HOODS_RE.exec(raw)
+  let area = null
+  if (hood) area = hood[0].replace(/\b\w/g, (c) => c.toUpperCase())
+  else if (/austin/.test(a)) area = /close in|central/.test(a) ? 'Austin — close in' : 'Austin'
+  if (area) out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Area: ${area}` })
+  return out
+}
+
+function fxBudget(raw) {
+  const a = raw.toLowerCase()
+  const out = { weights: {}, must: [], facts: [] }
+  const m = BUDGET_RE.exec(a)
+  if (m && !/flexible/.test(a)) {
+    const band = m[2] ? `${m[1]}k-${m[2]}k` : (/under|below|max/.test(a) ? `under ${m[1]}k` : `around ${m[1]}k`)
+    out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Budget band: ${band}` })
+  } else {
+    out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Budget: ${raw}` })
+  }
+  return out
+}
+
+function fxWho(raw) {
+  const a = raw.toLowerCase()
+  const seg = /(just me|me\s*(?:and|\+)\s*[^,.]+|family[^,.]*|couple[^,.]*|my partner[^,.]*|partner[^,.]*)/.exec(a)
+  const household = seg ? seg[1].trim() : null
+  const facts = household
+    ? [{ category: 'life_situation', provenance: 'stated', text: `Household: ${household}` }]
+    : []
+  if (/dog|puppy|daisy/.test(a)) {
+    return { weights: { yard: 3 }, must: ['yard'],
+      facts: facts.concat([{ category: 'life_situation', provenance: 'inferred', text: 'Must-have: outdoor space for the dog' }]) }
+  }
+  if (/kids|family/.test(a)) return { weights: { yard: 2, quiet: 2 }, must: [], facts }
+  return { weights: {}, must: [], facts }
+}
+
 const QUESTIONS = {
-  q_who: {
-    prompt: 'Who’s making this move with you?',
-    chips: ['Just me', 'Me + partner', 'Family with kids', 'Partner + a dog'],
+  // One conversational opener covers area + budget + household (Jake: "those
+  // first few questions can be weaved into one"). Follow-ups only fill gaps.
+  q_basics: {
+    prompt: "Let's start with the basics — where are you looking, roughly what budget, and who's making the move with you?",
+    chips: ['Austin close-in, ~$850k, me + partner + dog', 'Austin suburbs, under $750k, family of four', "Still deciding — let's talk"],
     optional: false,
     effects(answer) {
-      const a = answer.toLowerCase()
       const out = { weights: {}, must: [], facts: [] }
-      if (/dog|puppy|daisy/.test(a)) {
-        out.weights.yard = 3
-        out.must.push('yard')
-        out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Household: ${answer}` })
-        out.facts.push({ category: 'life_situation', provenance: 'inferred', text: 'Must-have: outdoor space for the dog' })
-      } else if (/kids|family/.test(a)) {
-        out.weights.yard = 2
-        out.weights.quiet = 2
-        out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Household: ${answer}` })
-      } else {
-        out.facts.push({ category: 'life_situation', provenance: 'stated', text: `Household: ${answer}` })
+      for (const part of [fxWhere(answer), fxBudget(answer), fxWho(answer)]) {
+        Object.assign(out.weights, part.weights)
+        out.must.push(...part.must)
+        out.facts.push(...part.facts)
       }
+      if (!BUDGET_RE.test(answer)) out.facts = out.facts.filter((f) => !f.text.startsWith('Budget:'))
       return out
     },
-    next: (answer) => (/dog|puppy|daisy/i.test(answer) ? 'q_dog' : 'q_saturday'),
+    next: (a) => (!BUDGET_RE.test(a) ? 'q_budget' : /dog|puppy|daisy/i.test(a) ? 'q_dog' : 'q_saturday'),
+  },
+
+  q_budget: {
+    prompt: 'And what budget are we working with, roughly?',
+    chips: ['Under $750k', '$750k–900k', 'Up to $1M', 'Flexible for the right one'],
+    optional: false,
+    effects: fxBudget,
+    next: () => 'q_saturday',
   },
 
   q_dog: {
@@ -169,7 +217,7 @@ const MUST_LABELS = {
 export function nextQuestion(answers) {
   if (answers.length >= INTERVIEW_LENGTH) return null
   if (answers.length === 0) {
-    return { id: 'q_who', ...pick(QUESTIONS.q_who), asked: 1, total: INTERVIEW_LENGTH }
+    return { id: 'q_basics', ...pick(QUESTIONS.q_basics), asked: 1, total: INTERVIEW_LENGTH }
   }
   const last = answers[answers.length - 1]
   const askedIds = new Set(answers.map((a) => a.questionId))

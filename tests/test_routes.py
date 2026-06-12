@@ -43,9 +43,9 @@ def test_context_and_hygiene():
 
 def test_interview_surface():
     q = client.post("/api/interview/next", json={"profile_id": "guest_v1", "answers": []}).json()
-    assert q["id"] == "q_who" and q["total"] == 6
+    assert q["id"] == "q_basics" and q["total"] == 7
     res = client.post("/api/interview/answer", json={
-        "profile_id": "guest_v1", "answers": [], "question_id": "q_who", "answer": "Partner + a dog",
+        "profile_id": "guest_v1", "answers": [], "question_id": "q_basics", "answer": "Partner + a dog, around $850k",
     }).json()
     assert set(res) == {"new_facts", "profile_delta", "ranked", "next"}
     assert res["next"]["id"] == "q_dog"

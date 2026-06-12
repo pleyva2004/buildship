@@ -74,9 +74,10 @@ export default function App() {
   }, [])
 
   const freshDisc = useCallback((pid) => {
-    const state = discovery.initialState(pid)
+    // logistics facts (Area/Budget band) become HARD filters, never weights
+    const state = discovery.initialState(pid, discovery.filtersFromMemories(memories))
     return { state, set: discovery.discover(pid, state).set }
-  }, [])
+  }, [memories])
   const discCur = disc[profileId] ?? freshDisc(profileId)
   const commitDisc = useCallback((next) => {
     setDisc((prev) => ({ ...prev, [profileId]: next }))

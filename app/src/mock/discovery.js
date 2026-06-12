@@ -40,12 +40,30 @@ export const START_WEIGHTS = {
 export const WEIGHT_CAP = 1.4
 const BUMP = 0.55
 
-export const initialState = (profileId) => ({
+export const initialState = (profileId, filters = {}) => ({
   weights: { ...(START_WEIGHTS[profileId] ?? START_WEIGHTS.guest_v1) },
+  filters, // HARD filters (design 10 §4): {maxPrice, minBeds, area} — never weights
   dismissed: [],
   saved: [],
   showMore: false,
 })
+
+// Logistics facts (interview q_where/q_budget, "Budget band: 750k-900k") -> hard filters.
+export function filtersFromMemories(memories) {
+  const f = {}
+  for (const m of memories ?? []) {
+    const band = /Budget band:\s*(?:under\s*|around\s*)?(\d{3,4})k(?:-(\d{3,4})k)?/i.exec(m.text ?? '')
+    if (band) f.maxPrice = (band[2] ? +band[2] : +band[1]) * 1000
+    if (/family with kids/i.test(m.text ?? '')) f.minBeds = 3
+  }
+  return f
+}
+
+const passesFilters = (l, f = {}) => {
+  if (f.maxPrice && parseInt(l.price.replace(/\D/g, ''), 10) > f.maxPrice) return false
+  if (f.minBeds && l.beds < f.minBeds) return false
+  return true
+}
 
 const byId = (id) => LISTINGS.find((l) => l.listing_id === id)
 
@@ -55,8 +73,8 @@ export function score(l, w) {
   return t ? s / t : 0
 }
 
-export function rankIds(weights, dismissed) {
-  return LISTINGS.filter((l) => !dismissed.includes(l.listing_id))
+export function rankIds(weights, dismissed, filters) {
+  return LISTINGS.filter((l) => !dismissed.includes(l.listing_id) && passesFilters(l, filters))
     .map((l) => ({ id: l.listing_id, s: score(l, weights) }))
     .sort((a, b) => b.s - a.s)
     .map((x) => x.id)
@@ -77,7 +95,7 @@ export function tradeChip(listing, weights) {
 }
 
 function rankedSet(state, badges = {}, intro = null) {
-  const ordered = rankIds(state.weights, state.dismissed)
+  const ordered = rankIds(state.weights, state.dismissed, state.filters)
   return {
     intro: intro ?? 'homes that fit everything so far — my top pick first. Tell me what to change and I’ll re-rank live.',
     visible: ordered.slice(0, state.showMore ? 5 : 3),
@@ -93,10 +111,10 @@ export function discover(profileId, state) {
 
 // reaction/refine: returns { state, narration, set } — caller commits state.
 export function refine(state, bumpKey, say) {
-  const before = rankIds(state.weights, state.dismissed).slice(0, 3)
+  const before = rankIds(state.weights, state.dismissed, state.filters).slice(0, 3)
   const weights = { ...state.weights, [bumpKey]: Math.min(WEIGHT_CAP, (state.weights[bumpKey] ?? 0) + BUMP) }
   const next = { ...state, weights, showMore: false }
-  const after = rankIds(weights, state.dismissed).slice(0, 3)
+  const after = rankIds(weights, state.dismissed, state.filters).slice(0, 3)
 
   const badges = {}
   after.forEach((id, i) => {
@@ -116,7 +134,7 @@ export function refine(state, bumpKey, say) {
 
 export function dismiss(state, listingId) {
   const next = { ...state, dismissed: [...state.dismissed, listingId] }
-  const remaining = rankIds(next.weights, next.dismissed)
+  const remaining = rankIds(next.weights, next.dismissed, next.filters)
   const filler = remaining[2]
   const badges = filler ? { [filler]: 'fresh' } : {}
   const narration = `Noted — I’ll steer away from places like that.${filler ? ` **${byId(filler).title}** takes its spot.` : ''}`

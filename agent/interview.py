@@ -25,7 +25,7 @@ from agent import config
 from agent.clients import nebius
 from agent.clients.mem0_client import Mem0Client
 
-INTERVIEW_LENGTH = 6  # must match app/src/mock/interview.js
+INTERVIEW_LENGTH = 7  # must match app/src/mock/interview.js
 
 TRAITS = [
     "bright", "cozy", "yard", "walkable", "office", "hosting",
@@ -57,18 +57,77 @@ def _fx(weights=None, must=None, facts=None):
     return {"weights": weights or {}, "must": must or [], "facts": facts or []}
 
 
+BUDGET_RE = re.compile(r"\$?(\d{3,4})\s*k?(?:\s*[-–to]+\s*\$?(\d{3,4})\s*k?)?", re.I)
+
+
+HOODS_RE = re.compile(r"travis heights|zilker|mueller|hyde park|east austin|east 6th|circle c|clarksville", re.I)
+
+
+def _fx_basics(raw: str) -> dict:
+    """One conversational opener covers area + budget + household (Jake: 'those
+    first few questions can be weaved into one'). Parses whatever was given;
+    the chain follows up only on what's missing."""
+    out = _fx()
+    for part in (_fx_where(raw), _fx_budget(raw), _fx_who(raw)):
+        out["weights"].update(part["weights"])
+        out["must"] += part["must"]
+        out["facts"] += part["facts"]
+    # drop the raw-echo fallbacks a combined answer would produce
+    out["facts"] = [f for f in out["facts"]
+                    if not (f["text"].startswith("Budget:") and not BUDGET_RE.search(raw))]
+    return out
+
+
+def _fx_where(raw: str) -> dict:
+    a = raw.lower()
+    out = _fx()
+    if re.search(r"close in|central|downtown|walkable", a):
+        out["weights"]["walkable"] = 2
+    if re.search(r"suburb|quieter|circle c", a):
+        out["weights"]["quiet"] = 2
+    hood = HOODS_RE.search(raw)
+    if hood:
+        area = hood.group(0).title()
+    elif re.search(r"austin", a):
+        area = "Austin — close in" if re.search(r"close in|central", a) else "Austin"
+    else:
+        area = None  # no real signal -> no fact (live follows up; junk never lands)
+    if area:
+        out["facts"].append({"category": "life_situation", "provenance": "stated",
+                             "text": f"Area: {area}"})
+    return out
+
+
+def _fx_budget(raw: str) -> dict:
+    a = raw.lower()
+    out = _fx()
+    m = BUDGET_RE.search(a)
+    if m and not re.search(r"flexible", a):
+        lo, hi = m.group(1), m.group(2)
+        band = f"{lo}k-{hi}k" if hi else (f"under {lo}k" if re.search(r"under|below|max", a) else f"around {lo}k")
+        out["facts"].append({"category": "life_situation", "provenance": "stated",
+                             "text": f"Budget band: {band}"})
+    else:
+        out["facts"].append({"category": "life_situation", "provenance": "stated",
+                             "text": f"Budget: {raw}"})
+    return out
+
+
 def _fx_who(raw: str) -> dict:
     a = raw.lower()
+    # household = the household SEGMENT of a (possibly combined) answer — never
+    # the raw blob, and never invented labels (mirror their words exactly)
+    seg = re.search(r"(just me|me\s*(?:and|\+)\s*[^,.]+|family[^,.]*|couple[^,.]*|my partner[^,.]*|partner[^,.]*)", a)
+    household = seg.group(1).strip() if seg else None
+    facts = ([{"category": "life_situation", "provenance": "stated", "text": f"Household: {household}"}]
+             if household else [])
     if re.search(r"dog|puppy|daisy", a):
-        return _fx({"yard": 3}, ["yard"], [
-            {"category": "life_situation", "provenance": "stated", "text": f"Household: {raw}"},
+        return _fx({"yard": 3}, ["yard"], facts + [
             {"category": "life_situation", "provenance": "inferred", "text": "Must-have: outdoor space for the dog"},
         ])
     if re.search(r"kids|family", a):
-        return _fx({"yard": 2, "quiet": 2}, [], [
-            {"category": "life_situation", "provenance": "stated", "text": f"Household: {raw}"},
-        ])
-    return _fx({}, [], [{"category": "life_situation", "provenance": "stated", "text": f"Household: {raw}"}])
+        return _fx({"yard": 2, "quiet": 2}, [], facts)
+    return _fx({}, [], facts)
 
 
 def _fx_dog(raw: str) -> dict:
@@ -172,12 +231,22 @@ def _fx_anything(raw: str) -> dict:
 
 
 SCRIPT = {
-    "q_who": {
-        "prompt": "Who’s making this move with you?",
-        "chips": ["Just me", "Me + partner", "Family with kids", "Partner + a dog"],
+    # Logistics FIRST (Jake: "we don't even ask where are you moving") — these
+    # become HARD FILTERS in discovery (design 10 §4), never taste weights.
+    "q_basics": {
+        "prompt": "Let's start with the basics — where are you looking, roughly what budget, and who's making the move with you?",
+        "chips": ["Austin close-in, ~$850k, me + partner + dog", "Austin suburbs, under $750k, family of four", "Still deciding — let's talk"],
         "optional": False,
-        "effects": _fx_who,
-        "next": lambda a: "q_dog" if re.search(r"dog|puppy|daisy", a) else "q_saturday",
+        "effects": _fx_basics,
+        "next": lambda a: ("q_budget" if not BUDGET_RE.search(a)
+                           else "q_dog" if re.search(r"dog|puppy|daisy", a) else "q_saturday"),
+    },
+    "q_budget": {
+        "prompt": "And what budget are we working with, roughly?",
+        "chips": ["Under $750k", "$750k–900k", "Up to $1M", "Flexible for the right one"],
+        "optional": False,
+        "effects": _fx_budget,
+        "next": lambda a: "q_saturday",
     },
     "q_dog": {
         "prompt": "Tell me about the dog — what do walks look like?",
@@ -278,7 +347,7 @@ def _next_mock(answers: list[dict]) -> dict | None:
     if len(answers) >= INTERVIEW_LENGTH:
         return None
     if not answers:
-        return _question_payload("q_who", 1)
+        return _question_payload("q_basics", 1)
     last = answers[-1]
     asked_ids = {a.get("questionId") for a in answers}
     q = SCRIPT.get(last.get("questionId", ""))
@@ -331,7 +400,9 @@ def _record_mock(answers: list[dict], question_id: str, answer: str) -> dict:
 # ---------------------------------------------------------------------------
 
 PLANNER_PROMPT = """You are VISTA, a warm personal home-buying agent, conducting a short \
-get-to-know-you interview. You are NOT a form: acknowledge what you heard, then ask \
+get-to-know-you interview. NEVER assume facts the client hasn't stated: no \
+relationship labels (say "your partner" only if they said couple/partner — never \
+"girlfriend"/"wife"), no kids, no genders, no jobs. Mirror their own words exactly. You are NOT a form: acknowledge what you heard, then ask \
 exactly one short question at a time, in a warm human voice (sentence case, no emoji, \
 like: "What does a perfect Saturday at home actually look like for you?").
 
@@ -343,10 +414,14 @@ INTERVIEW STATE
 {known}
 - Never re-ask topics already covered above.
 
-COVERAGE — by the end you want signal on: who's moving / daily life, light & mood \
-preference, materials/textures, must-haves & deal-breakers, neighborhood feel. Deepen \
-into a topic only when an answer opens a door (a dog -> yard & walks; hosting -> \
-kitchen/dining). Otherwise advance to an uncovered area.
+COVERAGE — LOGISTICS COME FIRST and are REQUIRED: where, budget, and who's moving. \
+Gather them TOGETHER conversationally (the opener asks all three at once); follow up \
+ONLY on the pieces they left out, one short question at a time. Then: daily \
+life, light & mood preference, materials/textures, must-haves & deal-breakers, \
+neighborhood feel. Deepen into a topic only when an answer opens a door (a dog -> \
+yard & walks; hosting -> kitchen/dining). Otherwise advance to an uncovered area. \
+Logistics facts use exact prefixes so they can drive hard filters: "Area: …", \
+"Budget band: 750k-900k", "Timeline: …".
 THE FINAL QUESTION is always the open catch-all, in your own warm words: what else do \
 they want out of this home — activities they love, things they want nearby, any other \
 consideration. Give it id "final.anything_else". Ask it when one slot remains in the \
@@ -598,14 +673,42 @@ def next_question(profile_id: str, answers: list[dict]) -> dict | None:
     return _next_mock(answers)
 
 
+def _research_area_async(profile_id: str, area: str, memory: Mem0Client) -> None:
+    """Jake's hook #1: the moment the user says WHERE, research it. Live runs in
+    a background thread (intel lands in mem0 while they answer the next
+    question); mock is instant so it runs inline. Response shape is untouched —
+    twin parity holds because research goes to memory, not the payload."""
+    from agent import researcher
+
+    def work():
+        try:
+            intel = researcher.research_area(area)
+            memory.add(profile_id, f"{area}: {intel.split('.')[0]}.", "other", source="inferred")
+        except Exception as exc:
+            print(f"[interview] area research failed ({exc})")
+
+    if config.backend("tavily") == "live":
+        import threading
+        threading.Thread(target=work, daemon=True).start()
+    else:
+        work()
+
+
 def record_answer(profile_id: str, answers: list[dict], question_id: str, answer: str,
                   memory: Mem0Client | None = None) -> dict:
     if config.backend("interview") == "live":
         try:
-            return _record_live(profile_id, answers, question_id, answer, memory or Mem0Client())
+            result = _record_live(profile_id, answers, question_id, answer, memory or Mem0Client())
         except Exception as exc:  # never stall — degrade to the scripted step
             print(f"[interview] live step failed ({exc}); falling back to scripted step")
-    return _record_mock(answers, question_id, answer)
+            result = _record_mock(answers, question_id, answer)
+    else:
+        result = _record_mock(answers, question_id, answer)
+    if memory is not None:  # tests/parity call without memory — research only when wired
+        for f in result["new_facts"]:
+            if f["text"].startswith("Area:"):
+                _research_area_async(profile_id, f["text"][5:].strip(), memory)
+    return result
 
 
 # ---------------------------------------------------------------------------

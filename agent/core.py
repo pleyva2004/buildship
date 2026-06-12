@@ -112,6 +112,12 @@ class AgentSession:
         state = TurnState(profile_id=self.profile_id, memory=self.memory, recalled=list(recalled))
 
         msg = build_turn_message(user_msg, recalled)
+        # Jake's hook #2: the client asked about an area -> research is GUARANTEED,
+        # not left to tool-choice. Pre-fetch (cached) and inject as context; the
+        # agent weaves it in. The research_area tool stays for agent-initiated digs.
+        intel_block = self._area_intel(user_msg)
+        if intel_block:
+            msg = f"{intel_block}\n\n{msg}"
         reply, self._sdk_input = harness.run_turn(self._agent, state, self._sdk_input, msg)
         action = state.action or self._backstop(user_msg)
 
@@ -124,6 +130,20 @@ class AgentSession:
             "recalled": state.recalled,
             "new_facts": state.new_facts,  # save_memory/revise_memory writes this turn
         }
+
+    def _area_intel(self, user_msg: str) -> str | None:
+        """Mentioned neighborhoods -> fresh researcher intel (per-process cache)."""
+        if config.backend("tavily") != "live" and config.backend("nebius") != "live":
+            return None
+        from agent import researcher
+
+        low = user_msg.lower()
+        hoods = {l.get("neighborhood", "") for l in load_listings()["listings"]}
+        hits = [h for h in hoods if h and h.lower() in low]
+        if not hits:
+            return None
+        notes = "\n".join(f"- {h}: {researcher.research_area(h)}" for h in hits[:2])
+        return f"[area intel — fresh research, weave in naturally]\n{notes}"
 
     @staticmethod
     def _backstop(user_msg: str) -> dict | None:

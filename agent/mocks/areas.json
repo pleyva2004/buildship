@@ -1,0 +1,11 @@
+{
+  "_comment": "Canned area intel for the research subagent (mock + stage fallback). Keys match neighborhoods in assets/listings/index.json.",
+  "Travis Heights": "Travis Heights is the walkable heart of south Austin — South Congress's cafés and music are 10-12 minutes on foot, and the Blunn Creek greenbelt threads right through the neighborhood for morning dog walks. Streets are leafy and slow, with a mix of original bungalows and newer builds.",
+  "Zilker": "Zilker trades a little polish for park life: Barton Springs Pool and the great lawn are effectively your backyard, and the dog scene at the off-leash trails is the best in the city. Interiors in the older craftsman stock run darker, but the porches earn their keep.",
+  "Mueller": "Mueller is master-planned calm — a weekend farmers market, the lake park loop, and wide sidewalks everywhere. It's quieter and newer than central Austin, with easy airport runs; walkability is good within the development, thinner beyond it.",
+  "Hyde Park": "Hyde Park is old Austin: sidewalks under pecan trees, front porches, Shipe Park and its pool around the corner, and Quack's bakery as the de facto living room. Quiet streets, strong character, smaller lots.",
+  "East Austin": "East Austin is the walk-everywhere bet — coffee, galleries, and live music on foot along East 6th and East Cesar Chavez. It's the liveliest (and loudest) of the close-in options; yards are rare, rooftops are not.",
+  "Circle C": "Circle C is south-west suburban: big lots, big yards, top-rated schools, and the Veloway and Lady Bird Johnson Wildflower Center nearby. You'll drive for coffee — the trade for space and quiet is car-dependence.",
+  "Clarksville": "Clarksville is one of Austin's oldest neighborhoods — storied homes, a tight grid you can walk, Fresh Plus on the corner, and Jeffrey's if the night calls for it. Premium prices for premium character, minutes from downtown.",
+  "default": "It's a well-located Austin neighborhood — I can dig deeper on walkability, parks, or schools if you tell me which matters most."
+}

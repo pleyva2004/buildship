@@ -41,3 +41,9 @@ def test_flatten_profile_categories():
     cats = {f["category"] for f in facts}
     assert cats == {"life_situation", "taste", "mood_board", "constraint"}
     assert any(f["text"].startswith("Must-have:") for f in facts)
+
+
+def test_researcher_mock_canned_and_default():
+    from agent.researcher import research_area
+    assert "South Congress" in research_area("Travis Heights")
+    assert "dig deeper" in research_area("Unknownville")

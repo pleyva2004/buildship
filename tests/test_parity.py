@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 SEQS = {
     "full-dog-path": [
-        ("q_who", "Me, my partner and our dog Daisy"),
+        ("q_basics", "Austin close-in, $750k–900k, me, my partner and our dog Daisy"),
         ("q_dog", "Long daily walks and she needs a real yard"),
         ("q_saturday", "Hosting friends for dinner"),
         ("q_light", "Bright & airy"),
@@ -26,7 +26,7 @@ SEQS = {
         ("q_anything", "I do pottery and love being near hiking trails"),
     ],
     "early-done-signal": [
-        ("q_who", "Just me"),
+        ("q_basics", "Still deciding the area, just me"),
         ("q_saturday", "Cooking long meals — that's everything, honestly"),
         ("q_anything", "A spot for my records. Nothing else, we're good"),
     ],

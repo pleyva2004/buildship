@@ -102,5 +102,22 @@ def revise_memory(ctx: RunContextWrapper[TurnState], old_fact: str, new_text: st
     return f"Memory updated: {new_text} (was: {old_fact})"
 
 
+@function_tool
+def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "") -> str:
+    """Research an Austin neighborhood for this client — walkability, parks,
+    vibe, market color. Call when discussing an area or grounding a
+    recommendation ("you said walkable matters — South Congress is a 12-minute
+    walk"). focus: what THIS client cares about, from their profile."""
+    from agent import researcher  # lazy: keeps tools importable without the module chain
+
+    state = ctx.context
+    intel = researcher.research_area(area, focus or "walkability, parks, overall vibe")
+    fact = {"category": "other", "provenance": "inferred", "text": f"{area}: {intel.split('.')[0]}."}
+    if not any(f["text"] == fact["text"] for f in state.new_facts):
+        state.memory.add(state.profile_id, fact["text"], "other", source="inferred")
+        state.new_facts.append(fact)
+    return intel
+
+
 ALL_TOOLS = [recall_memories, search_web_listings, recommend_listings, generate_tour,
-             save_memory, revise_memory]
+             save_memory, revise_memory, research_area]

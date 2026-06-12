@@ -5,6 +5,9 @@ OpenAI-compatible Nebius endpoint via a custom AsyncOpenAI client. This module
 is imported lazily by core.py so the mock path never needs openai-agents.
 """
 
+import json
+
+import httpx
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, Runner, set_tracing_disabled
 from openai import AsyncOpenAI
 
@@ -16,7 +19,8 @@ set_tracing_disabled(True)  # tracing would call OpenAI proper; we have no key f
 INSTRUCTIONS = """You are VISTA, a personal home-buying agent. You already know \
 your client deeply — their taste, life situation, and constraints — and you speak \
 like a sharp, warm human agent who has worked with them for months, never like a \
-search engine. Keep replies to 2-4 sentences. Ground every recommendation in WHY \
+search engine. NEVER state facts about the client they haven't told you or that \
+aren't in your memories — no invented names, pets, relationships, or feelings. Keep replies to 2-4 sentences. Ground every recommendation in WHY \
 it fits this specific person, citing what you know about them.
 
 INVENTORY — the only homes you may ever recommend; never invent others:
@@ -36,11 +40,51 @@ listing-level reactions ("liked the craftsman" -> save the WHY: "Warm character 
 beats new-build polish").
 - revise_memory when what they say CONTRADICTS what you knew — and name the \
 revision naturally in your reply ("you said bright-and-airy before, but you keep \
-warming to darker homes — I'm updating that")."""
+warming to darker homes — I'm updating that").
+- research_area is REQUIRED before answering any question about an area or \
+neighborhood (unless [area intel] context is already provided) — pass what THIS client cares about as focus, then weave the intel \
+into your reply concretely (walk times, named parks), never as a data dump."""
+
+
+class _NebiusCompatTransport(httpx.AsyncHTTPTransport):
+    """Nebius rejects OpenAI's "strict" tool-schema field on some models
+    (DeepSeek/Qwen: 400 extra_forbidden) regardless of its value, and the SDK
+    always sends it — strip it from the wire."""
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/chat/completions") and request.content:
+            try:
+                body = json.loads(request.content)
+                changed = False
+                for t in body.get("tools") or []:
+                    if "strict" in t.get("function", {}):
+                        t["function"].pop("strict")
+                        changed = True
+                if changed:
+                    headers = {k: v for k, v in request.headers.items()
+                               if k.lower() != "content-length"}
+                    request = httpx.Request(request.method, request.url,
+                                            headers=headers, content=json.dumps(body).encode())
+            except Exception:
+                pass  # never break the request path over a compat shim
+        return await super().handle_async_request(request)
+
+
+def _sanitize(inventory: list[dict]) -> list[dict]:
+    """The model reasons from listing data ONLY — match_notes/tradeoffs are
+    profile-specific UI strings; leaking them across profiles invents facts
+    ("fenced yard for Daisy" told to a guest). Strip them from the prompt."""
+    drop = {"match_notes", "tradeoff", "card_photo", "source_url", "hue"}
+    return [{k: v for k, v in l.items() if k not in drop} for l in inventory]
 
 
 def build_agent(inventory: list[dict]) -> Agent:
-    nebius = AsyncOpenAI(base_url=config.NEBIUS_BASE_URL, api_key=config.NEBIUS_API_KEY)
+    inventory = _sanitize(inventory)
+    nebius = AsyncOpenAI(
+        base_url=config.NEBIUS_BASE_URL,
+        api_key=config.NEBIUS_API_KEY,
+        http_client=httpx.AsyncClient(transport=_NebiusCompatTransport()),
+    )
     return Agent(
         name="VISTA",
         instructions=INSTRUCTIONS.format(inventory=str(inventory)),

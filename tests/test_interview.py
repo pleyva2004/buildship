@@ -15,30 +15,42 @@ def run_interview(seq):
 
 def test_opener_is_scripted():
     q = interview.next_question("test", [])
-    assert q["id"] == "q_who"
+    assert q["id"] == "q_basics"  # one conversational opener: where + budget + who
     assert q["asked"] == 1 and q["total"] == interview.INTERVIEW_LENGTH
     assert q["chips"]
 
 
 def test_dog_branch():
-    res = interview.record_answer("test", [], "q_who", "Partner + a dog")
+    res = interview.record_answer("test", [], "q_basics", "Austin, $850k, partner + a dog")
     assert res["next"]["id"] == "q_dog"
     texts = [f["text"] for f in res["new_facts"]]
     assert "Must-have: outdoor space for the dog" in texts
+    assert "Household: partner + a dog" in texts  # segment, never the raw blob
 
 
 def test_no_dog_skips_dog_question():
-    res = interview.record_answer("test", [], "q_who", "Just me")
+    res = interview.record_answer("test", [], "q_basics", "Austin, $700k, just me")
     assert res["next"]["id"] == "q_saturday"
+
+
+def test_missing_budget_gets_followup():
+    res = interview.record_answer("test", [], "q_basics", "Austin close-in, me and my partner")
+    assert res["next"]["id"] == "q_budget"
+
+
+def test_vague_basics_produces_no_junk_facts():
+    res = interview.record_answer("test", [], "q_basics", "Still deciding honestly")
+    assert res["new_facts"] == []
 
 
 def test_catchall_is_always_last_dog_path():
     seq = [
-        ("q_who", "Partner + a dog"),
+        ("q_basics", "Austin close-in, $850k, partner + a dog"),
         ("q_dog", "Long daily walks"),
         ("q_saturday", "Hosting friends for dinner"),
         ("q_light", "Bright & airy"),
         ("q_dealbreaker", "No dark interiors"),
+        ("q_center", "Walkable cafés and shops"),
     ]
     _, results, _ = run_interview(seq)
     assert results[-1]["next"]["id"] == "q_anything"
@@ -46,7 +58,8 @@ def test_catchall_is_always_last_dog_path():
 
 def test_catchall_is_always_last_no_dog_path():
     seq = [
-        ("q_who", "Just me"),
+        ("q_basics", "Austin suburbs, just me"),
+        ("q_budget", "Under $750k"),
         ("q_saturday", "Quiet"),
         ("q_light", "Cozy & warm"),
         ("q_dealbreaker", "No long commutes"),
@@ -58,7 +71,7 @@ def test_catchall_is_always_last_no_dog_path():
 
 def test_interview_ends_after_catchall():
     seq = [
-        ("q_who", "Partner + a dog"),
+        ("q_basics", "Austin close-in, $850k, partner + a dog"),
         ("q_dog", "Long daily walks"),
         ("q_saturday", "Hosting friends"),
         ("q_light", "Bright & airy"),
@@ -79,7 +92,7 @@ def test_profile_delta_on_light_question():
 
 def test_rank_unmet_must_sinks_and_ties_break_by_price():
     # dog answer -> yard is a must; alt4/alt2 (no yard) sink; yard ties price-asc
-    res = interview.record_answer("test", [], "q_who", "Partner + a dog")
+    res = interview.record_answer("test", [], "q_basics", "Partner + a dog")
     order = [r["listing_id"] for r in res["ranked"]]
     assert order == ["alt5", "alt1", "alt3", "hero", "alt4", "alt2", "alt6"]
     top = res["ranked"][0]
@@ -110,3 +123,24 @@ def test_done_regex_does_not_false_positive_on_chips():
     for chip in ["No dark interiors", "Just me", "Out all day, home to recharge",
                  "Quick trips + a real yard", "Bright & airy"]:
         assert not interview.DONE_RE.search(chip), chip
+
+
+def test_budget_band_parses():
+    res = interview.record_answer("test", [], "q_budget", "$750k–900k")
+    assert any(f["text"] == "Budget band: 750k-900k" for f in res["new_facts"])
+    res = interview.record_answer("test", [], "q_budget", "Under $750k")
+    assert any(f["text"] == "Budget band: under 750k" for f in res["new_facts"])
+
+
+def test_where_records_area_fact():
+    res = interview.record_answer("test", [], "q_basics", "Austin — close in")
+    assert any(f["text"] == "Area: Austin — close in" for f in res["new_facts"])
+    assert res["next"]["id"] == "q_budget"  # budget missing -> follow up
+
+
+def test_area_answer_triggers_research_to_memory():
+    from agent.clients.mem0_client import Mem0Client
+    mem = Mem0Client()
+    interview.record_answer("guest_v1", [], "q_basics", "Travis Heights please", mem)
+    texts = [m["text"] for m in mem.all("guest_v1")]
+    assert any("South Congress" in t for t in texts), texts
