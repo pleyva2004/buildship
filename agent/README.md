@@ -27,6 +27,7 @@ any turn degrades to the deterministic mock turn; the demo never stalls.
 | `harness.py` | Agents SDK wiring (live path): Nebius via custom `AsyncOpenAI` + `OpenAIChatCompletionsModel`, tracing disabled. Imported lazily — the mock path never needs `openai-agents` |
 | `tools.py` | `TurnState` + the four function tools; action tools write into the run context, `turn()` reads them back |
 | `listings.py` | One-time B2 discovery (`make listings[-live]`): Tavily search/extract → `assets/listings/index.draft.json` + photo URLs. **Never auto-writes the frozen `index.json`** |
+| `interview.py` | The getting-to-know-you engine (designs 08b/09): mock = exact port of `app/src/mock/interview.js` (parity-tested); live = one structured Nebius completion per answer → facts (mem0, with provenance) + trait weights + next adaptive question. Ranking is always the deterministic scorer. REPL via `make interview[-live]` |
 | `server.py` | FastAPI bridge on :8001. Routes are pure HTTP↔AgentSession translation; one shared `Mem0Client`, one session per profile |
 | `loop.py` | Terminal REPL — same brain, prints `[recall]` and `[action]` lines for debugging |
 | `seed.py` | Flattens `profiles/*.json` → atomic facts → mem0. Live mode wipes first (idempotent re-seed) |

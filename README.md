@@ -51,6 +51,7 @@ cd app && npm install && cd ..
 | `make serve` | Agent API on **:8001** (mock) — docs at `localhost:8001/docs` |
 | `make serve-live` | Agent API, everything live |
 | `make app` | React app on **:5173** (symlinks `/assets`, proxies `/api` → :8001) |
+| `make interview` / `interview-live` | Terminal run of the getting-to-know-you interview (REPL) |
 | `make seed` | Flatten profiles → memories (mock, sanity check) |
 | `make seed-live` | Wipe + re-seed real mem0 with both profiles (idempotent) |
 | `make listings` / `listings-live` | B2 discovery → `index.draft.json` + photo URLs (never touches frozen `index.json`) |
@@ -73,15 +74,15 @@ flip Jake ⇄ Pablo in the top bar.
 | `POST /api/reset/{profile_id}` | Fresh conversation (rehearsals); memories untouched |
 | `GET /api/health` | Backend mode per layer |
 
-**Pending agent surface (design 08 §1)** — the app already calls these and transparently
-falls back to its deterministic mock twin on failure, so `404 Not Found` for them in the
-server log is expected, not a bug:
+**Interview surface (designs 08b/09, live since step 1)** — adaptive engine in
+`agent/interview.py`; the app still falls back to its local mock twin on failure:
 
 | Endpoint | Returns |
 |---|---|
-| `POST /api/interview/next` `{profile_id, answers}` | `{id, prompt, chips, optional, asked, total}` — next adaptive interview question |
-| `POST /api/interview/answer` `{profile_id, answers, question_id, answer}` | `{new_facts, ranked, next}` — facts for the rail + re-ranked pool |
+| `POST /api/interview/next` `{profile_id, answers}` | `{id, prompt, chips, optional, asked, total}` — next interview question |
+| `POST /api/interview/answer` `{profile_id, answers, question_id, answer}` | `{new_facts, ranked, next}` — facts (written to mem0 with provenance) + deterministic re-rank + next adaptive question |
 | `POST /api/memory/{profile_id}/update` · `…/delete` | Memory hygiene (rail confirm/edit/remove → mem0) |
+| `POST /api/voice/transcribe` (multipart audio) | `{text}` — local faster-whisper STT, offline; any failure → client falls back to text mode |
 
 ## Repo layout
 
@@ -111,5 +112,6 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | mem0 (both profiles seeded) | ✅ | ✅ tested |
 | Tavily (listing discovery + `search_web_listings` tool) | ✅ | ✅ search tested; extract blocked by portals → manual photos (sanctioned) |
 | Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |
-| Design 08 frontend (interview + live re-rank, taste passport, listing detail, slider-first tour) | ✅ Playwright-verified end-to-end | n/a — UI; calls the pending interview surface and falls back |
-| Interview agent surface (`next_question`/`record_answer`/`rerank` + routes) | ✅ mock twin in `app/src/mock/interview.js` | pending (design 08 §5 item 1) |
+| Design 08b interview experience (phases, voice\|text modes, orb, taste panel, passport) | ✅ Playwright-verified end-to-end | ✅ same UI; live engine answers |
+| Voice v1 — hold-to-speak → `/api/voice/transcribe` (local faster-whisper, offline) | n/a — needs the server | ✅ tested (synthesized speech word-perfect; warm transcribe ~0.4s; human-verified) |
+| Interview engine (`agent/interview.py`: adaptive planner, mem0 writes, scorer, routes) | ✅ exact parity with `app/src/mock/interview.js` (tested) | ✅ tested end-to-end — adaptive questions, facts → real mem0 with provenance |

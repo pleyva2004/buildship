@@ -3,3 +3,6 @@ fastapi>=0.115
 uvicorn>=0.32
 # Agent harness (design 07) — live path only; mock path stays stdlib.
 openai-agents>=0.2
+# Voice v1 (design 09 §5): local offline STT + multipart uploads.
+faster-whisper>=1.0
+python-multipart>=0.0.9

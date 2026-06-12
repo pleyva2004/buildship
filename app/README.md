@@ -26,10 +26,10 @@ Every interview answer (and some chat messages) does three things at once:
    must-have chips. **No numeric match score anywhere** — story, not percentage.
 
 `api.js` calls the agent surface first (`/api/interview/next`, `/api/interview/answer`,
-`/api/memory/*`) and falls back to the deterministic mock twin on any failure. Those
-endpoints don't exist in `agent/server.py` yet, so **404s in the agent log are expected
-and harmless** — the mock twin answers. When the backend lands (design 08 §5 item 1),
-the same calls go live with zero frontend changes.
+`/api/memory/*`) and falls back to the deterministic mock twin on any failure. The
+backend landed (design 09 step 1, `agent/interview.py`): in mock mode the server is an
+exact parity port of the local twin; in live mode questions are generated adaptively on
+Nebius and facts are written to real mem0 — with zero frontend changes, as designed.
 
 ## Resilience model (the stage insurance)
 
@@ -52,7 +52,7 @@ zero asset files**:
 | `src/api.js` | `chat / getContext / resetSession` + `nextQuestion / recordAnswer / rankListings` + `updateMemory / deleteMemory` — live API with baked-in mock fallback |
 | `src/assets.js` | **The only A↔B runtime coupling** — asset path builders following the filename convention, plus `PLACEHOLDER` |
 | `src/components/Welcome.jsx` | Act 1 — invitation input that becomes the chat; warm-start chips, returning-user row, ambient Ken Burns |
-| `src/components/InterviewView.jsx` | 02 · Getting to Know You — one adaptive question at a time (chips + free text, branching, "2 of 5", skippable) with the live re-rank panel |
+| `src/components/InterviewView.jsx` | 02 · Getting to Know You — the 08b experience: intro Talk/Type choice, phases (speaking/ask/listening/thinking/done), orb + waveform, hold-to-speak voice answers (MediaRecorder → `/api/voice/transcribe`, auto-fallback to text), text thread + chips, and the "Your taste, taking shape" panel (palette, aesthetic, grouped facts incl. the open "Also worth knowing" lane) |
 | `src/components/RerankPanel.jsx` | The learn→re-rank proof — animated pool reorder, met/unmet chips, "↑ moved up" |
 | `src/components/ChatView.jsx` | Conversation column; agent bubbles may carry inline listing cards and "✓ Saved to memory" fact chips |
 | `src/components/ListingCards.jsx` | Curated cards, why-you headline first (price demoted), one honest tradeoff chip, restyle peek, sorted by learned rank; click opens Listing Detail |

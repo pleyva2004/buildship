@@ -1,6 +1,6 @@
 # VISTA — Engineer B targets (run from repo root)
 
-.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live
+.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live interview interview-live
 
 deps:             ## install backend deps (fastapi, uvicorn, openai-agents)
 	python3 -m pip install -r requirements.txt
@@ -22,6 +22,12 @@ seed:             ## flatten profiles -> memories (mock; sanity check)
 
 seed-live:        ## wipe + re-seed real mem0 with both profiles
 	MEM0_BACKEND=live python3 -m agent.seed
+
+interview:        ## terminal run of the getting-to-know-you interview (mock)
+	python3 -m agent.interview
+
+interview-live:   ## same, live planner on Nebius + live mem0 writes
+	VISTA_BACKEND=live python3 -m agent.interview
 
 agent:            ## terminal chat with the VISTA agent (mock backend by default)
 	python3 -m agent.loop

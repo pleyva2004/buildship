@@ -11,12 +11,34 @@
       "summary": "Bright corner lot, big windows, open plan, fenced yard, walk to South Congress.",
       "source_url": "",
       "hero": true,
-      "rooms": ["living", "kitchen", "primary_bed", "office", "dining", "exterior"],
+      "rooms": [
+        "living",
+        "kitchen",
+        "primary_bed",
+        "office",
+        "dining",
+        "exterior"
+      ],
       "card_photo": "assets/listings/hero/raw/hero__exterior.jpg",
       "match_notes": {
-        "jake_v1": ["office gets full morning light", "walk to South Congress", "fenced yard for Daisy"],
-        "pablo_v1": ["original wood detailing", "big western light in the living room"]
-      }
+        "jake_v1": [
+          "office gets full morning light",
+          "walk to South Congress",
+          "fenced yard for Daisy"
+        ],
+        "pablo_v1": [
+          "original wood detailing",
+          "big western light in the living room"
+        ]
+      },
+      "traits": [
+        "bright",
+        "yard",
+        "walkable",
+        "office",
+        "hosting"
+      ],
+      "neighborhood": "Travis Heights"
     },
     {
       "listing_id": "alt1",
@@ -32,9 +54,21 @@
       "rooms": [],
       "card_photo": "",
       "match_notes": {
-        "jake_v1": ["great walk score", "darker interiors — trade-off"],
-        "pablo_v1": ["warm character throughout"]
-      }
+        "jake_v1": [
+          "great walk score",
+          "darker interiors — trade-off"
+        ],
+        "pablo_v1": [
+          "warm character throughout"
+        ]
+      },
+      "traits": [
+        "character",
+        "walkable",
+        "cozy",
+        "yard"
+      ],
+      "neighborhood": "Zilker"
     },
     {
       "listing_id": "alt2",
@@ -50,8 +84,83 @@
       "rooms": [],
       "card_photo": "",
       "match_notes": {
-        "jake_v1": ["blank-canvas interiors", "yard is small for Daisy"],
-        "pablo_v1": ["lacks the character you love"]
+        "jake_v1": [
+          "blank-canvas interiors",
+          "yard is small for Daisy"
+        ],
+        "pablo_v1": [
+          "lacks the character you love"
+        ]
+      },
+      "traits": [
+        "bright",
+        "turnkey",
+        "quiet",
+        "office"
+      ],
+      "neighborhood": "Mueller"
+    },
+    {
+      "listing_id": "alt3",
+      "title": "Bungalow 3BR in Hyde Park",
+      "price": "$815,000",
+      "location": "Austin, TX",
+      "neighborhood": "Hyde Park",
+      "beds": 3,
+      "baths": 2,
+      "sqft": 1890,
+      "summary": "Storybook 1920s bungalow under pecan trees; wood floors, screened porch, deep quiet lot.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "traits": [
+        "character",
+        "quiet",
+        "yard",
+        "cozy",
+        "parks"
+      ],
+      "match_notes": {
+        "jake_v1": [
+          "big yard",
+          "small windows — trade-off"
+        ],
+        "pablo_v1": [
+          "collected-not-staged energy",
+          "evening porch light"
+        ]
+      }
+    },
+    {
+      "listing_id": "alt4",
+      "title": "Corner loft 2BR near East 6th",
+      "price": "$759,000",
+      "location": "Austin, TX",
+      "neighborhood": "East Austin",
+      "beds": 2,
+      "baths": 2,
+      "sqft": 1540,
+      "summary": "Double-height corner glazing, polished concrete, hosting kitchen; steps from East 6th.",
+      "source_url": "",
+      "hero": false,
+      "rooms": [],
+      "card_photo": "",
+      "traits": [
+        "bright",
+        "walkable",
+        "hosting",
+        "downtown"
+      ],
+      "match_notes": {
+        "jake_v1": [
+          "flooded with light",
+          "no yard — trade-off"
+        ],
+        "pablo_v1": [
+          "great hosting kitchen",
+          "cooler palette than yours"
+        ]
       }
     }
   ]

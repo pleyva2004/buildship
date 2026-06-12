@@ -85,6 +85,23 @@ export function rankListings(answers) {
   return interviewMock.rankListings(answers)
 }
 
+// ---- voice (design 09 §5): hold-to-speak audio -> transcript -----------------
+// Local faster-whisper on the agent server. Returns null on ANY failure so the
+// caller can fall back to text mode — voice never dead-ends the interview.
+
+export async function transcribe(blob) {
+  try {
+    const form = new FormData()
+    form.append('audio', blob, 'answer.webm')
+    const r = await fetch('/api/voice/transcribe', { method: 'POST', body: form })
+    if (!r.ok) return null
+    const data = await r.json()
+    return data.text?.trim() || null
+  } catch {
+    return null
+  }
+}
+
 // ---- memory hygiene (design 08 §2 (03): confirm / edit / remove) ------------
 // Best-effort against the live agent (which cleans mem0); silent on mock.
 

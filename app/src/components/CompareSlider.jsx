@@ -28,13 +28,13 @@ export default function CompareSlider({ original, restyled }) {
       <img
         src={original}
         alt="Original room"
-        onError={(e) => { e.currentTarget.src = PLACEHOLDER('original photo') }}
+        onError={(e) => { e.currentTarget.src = PLACEHOLDER('original photo', 'left') }}
       />
       <img
         src={restyled}
         alt="Restyled room"
         style={{ clipPath: `inset(0 0 0 ${pos}%)` }}
-        onError={(e) => { e.currentTarget.src = PLACEHOLDER('restyle landing soon') }}
+        onError={(e) => { e.currentTarget.src = PLACEHOLDER('restyle landing soon', 'right') }}
       />
       <div className="divider" style={{ left: `${pos}%` }} />
       <div className="handle" style={{ left: `${pos}%` }}>⇆</div>

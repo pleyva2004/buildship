@@ -98,8 +98,19 @@ class Mem0Client:
             return [self._norm(m) for m in data]
         return list(self._store.get(profile_id, []))
 
-    def add(self, profile_id: str, text: str, category: str = "life_situation") -> dict:
-        """One new fact learned mid-conversation (the investigative step)."""
+    def add(
+        self,
+        profile_id: str,
+        text: str,
+        category: str = "life_situation",
+        source: str = "stated",
+        question_id: str | None = None,
+    ) -> dict:
+        """One new fact learned mid-conversation (interview or property talk).
+        source: stated | inferred — honest provenance, rendered in the rails."""
+        metadata = {"category": category, "source": source}
+        if question_id:
+            metadata["question_id"] = question_id
         if self.live:
             self._api(
                 "POST",
@@ -107,19 +118,38 @@ class Mem0Client:
                 {
                     "messages": [{"role": "user", "content": text}],
                     "user_id": profile_id,
-                    "metadata": {"category": category},
+                    "metadata": metadata,
                     "infer": False,
                 },
             )
-            return {"text": text, "category": category}
+            return {"text": text, "category": category, "source": source}
         mem = {
             "id": f"{profile_id}-{len(self._store.get(profile_id, []))}",
             "text": text,
             "category": category,
+            "source": source,
             "score": 1.0,
         }
         self._store.setdefault(profile_id, []).append(mem)
         return mem
+
+    def update(self, profile_id: str, memory_id: str, text: str) -> None:
+        """Memory hygiene: rail edit/confirm → revised fact text."""
+        if self.live:
+            self._api("PUT", f"/memories/{memory_id}/", {"text": text})
+            return
+        for mem in self._store.get(profile_id, []):
+            if mem["id"] == memory_id:
+                mem["text"] = text
+
+    def delete(self, profile_id: str, memory_id: str) -> None:
+        """Memory hygiene: rail remove → gone from mem0 too."""
+        if self.live:
+            self._api("DELETE", f"/memories/{memory_id}/")
+            return
+        self._store[profile_id] = [
+            m for m in self._store.get(profile_id, []) if m["id"] != memory_id
+        ]
 
     def delete_all(self, profile_id: str) -> None:
         """Reset before re-seeding (idempotent rehearsals)."""
@@ -132,10 +162,12 @@ class Mem0Client:
 
     @staticmethod
     def _norm(m: dict) -> dict:
+        meta = m.get("metadata") or {}
         return {
             "id": m.get("id", ""),
             "text": m.get("memory") or m.get("text", ""),
-            "category": (m.get("metadata") or {}).get("category", "life_situation"),
+            "category": meta.get("category", "life_situation"),
+            "source": meta.get("source", "stated"),
             "score": m.get("score", 0.0),
         }
 

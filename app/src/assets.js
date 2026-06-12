@@ -9,12 +9,18 @@ export const restyledPhoto = (room, profileId) =>
 export const tourVideo = (profileId) => `/assets/listings/hero/video/${profileId}/tour.mp4`
 
 // Branded inline placeholder for any missing render (no broken-image icons, ever).
-export const PLACEHOLDER = (label = 'render landing soon') =>
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">
+// `align` offsets the label so two stacked placeholders (the compare slider's
+// original + clipped restyle) don't overlap into garbled text at the divider.
+export const PLACEHOLDER = (label = 'render landing soon', align = 'center') => {
+  const x = align === 'left' ? '25%' : align === 'right' ? '75%' : '50%'
+  return (
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">
       <rect width="100%" height="100%" fill="#E8E1D5"/>
-      <text x="50%" y="50%" font-family="Georgia, serif" font-size="24" fill="#8A7E6D"
+      <text x="${x}" y="50%" font-family="Georgia, serif" font-size="24" fill="#8A7E6D"
         text-anchor="middle" dominant-baseline="middle">${label}</text>
     </svg>`,
+    )
   )
+}

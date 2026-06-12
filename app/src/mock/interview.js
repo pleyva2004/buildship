@@ -195,11 +195,27 @@ export function rankListings(answers) {
   }))
 }
 
+// The panel's palette/aesthetic evolution (08b §7) — deterministic in mock:
+// only the light/mood question moves the taste reading. Mirrored in
+// agent/interview.py _profile_delta_mock — keep in lockstep.
+export function profileDelta(questionId, answer) {
+  if (questionId !== 'q_light') return { palette_add: [], aesthetic: null }
+  const a = answer.toLowerCase()
+  if (/bright|airy/.test(a)) {
+    return { palette_add: ['#F5F3EF', '#D9D2C7', '#A7B5A0'], aesthetic: 'bright & airy modern' }
+  }
+  if (/cozy|warm/.test(a)) {
+    return { palette_add: ['#C8A27A', '#7A5C3E', '#2F3E46'], aesthetic: 'warm & collected' }
+  }
+  return { palette_add: ['#E9E4DB'], aesthetic: null }
+}
+
 export function recordAnswer(answers, questionId, answer) {
   const fx = QUESTIONS[questionId]?.effects(answer) ?? { facts: [] }
   const all = [...answers, { questionId, answer }]
   return {
     new_facts: fx.facts,
+    profile_delta: profileDelta(questionId, answer),
     ranked: rankListings(all),
     next: nextQuestion(all),
   }

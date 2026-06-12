@@ -5,10 +5,12 @@ Run:  make serve   ->  http://localhost:8001  (docs at /docs)
 The Vite dev server proxies /api here.
 """
 
-from fastapi import FastAPI
+import io
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from agent import config
+from agent import config, interview
 from agent.clients.mem0_client import Mem0Client
 from agent.core import AgentSession, load_listings
 
@@ -56,6 +58,91 @@ def listings():
 def reset(profile_id: str):
     """Fresh conversation for rehearsals; memories are untouched."""
     sessions.pop(profile_id, None)
+    interview.reset(profile_id)
+    return {"ok": True}
+
+
+# ---- interview surface (designs 08b §6, 09 §4) -------------------------------
+# Stateless: the client passes its answers[] on every call. Shapes mirror
+# app/src/mock/interview.js exactly — the app falls back to that twin on failure.
+
+
+class InterviewNextRequest(BaseModel):
+    profile_id: str = "jake_v1"
+    answers: list[dict] = []
+
+
+class InterviewAnswerRequest(BaseModel):
+    profile_id: str = "jake_v1"
+    answers: list[dict] = []
+    question_id: str
+    answer: str
+
+
+@app.post("/api/interview/next")
+def interview_next(req: InterviewNextRequest):
+    return interview.next_question(req.profile_id, req.answers)
+
+
+@app.post("/api/interview/answer")
+def interview_answer(req: InterviewAnswerRequest):
+    return interview.record_answer(
+        req.profile_id, req.answers, req.question_id, req.answer, memory
+    )
+
+
+# ---- voice v1 (design 09 §5): audio blob -> transcript ------------------------
+# Local faster-whisper — offline, zero keys, stage-wifi-proof. Lazy-loaded so the
+# server runs without the dep; the client treats any failure as "fall back to text".
+
+_whisper = None
+
+
+def _whisper_model():
+    global _whisper
+    if _whisper is None:
+        from faster_whisper import WhisperModel  # lazy: optional dependency
+
+        _whisper = WhisperModel("base.en", device="cpu", compute_type="int8")
+    return _whisper
+
+
+@app.post("/api/voice/transcribe")
+async def voice_transcribe(audio: UploadFile = File(...)):
+    try:
+        model = _whisper_model()
+    except Exception as exc:
+        raise HTTPException(501, f"speech-to-text unavailable ({exc})")
+    data = await audio.read()
+    try:
+        segments, _ = model.transcribe(io.BytesIO(data), language="en", beam_size=1, vad_filter=True)
+        text = " ".join(s.text.strip() for s in segments).strip()
+    except Exception as exc:
+        raise HTTPException(422, f"could not transcribe audio ({exc})")
+    return {"text": text}
+
+
+# ---- memory hygiene (design 08 — rail confirm / edit / remove) ---------------
+
+
+class MemoryUpdateRequest(BaseModel):
+    memory_id: str
+    text: str
+
+
+class MemoryDeleteRequest(BaseModel):
+    memory_id: str
+
+
+@app.post("/api/memory/{profile_id}/update")
+def memory_update(profile_id: str, req: MemoryUpdateRequest):
+    memory.update(profile_id, req.memory_id, req.text)
+    return {"ok": True}
+
+
+@app.post("/api/memory/{profile_id}/delete")
+def memory_delete(profile_id: str, req: MemoryDeleteRequest):
+    memory.delete(profile_id, req.memory_id)
     return {"ok": True}
 
 

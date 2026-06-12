@@ -17,6 +17,18 @@ import { SPECS } from './mock/data.js'
 // FastAPI bridge via api.js, mock fallback baked in.
 const NO_NUDGES = { warmth: 0, ornate: 0, light: 0 }
 
+// "Key: value" facts are singular — a new one supersedes the old value for
+// that key (e.g. interview's "Household: partner + a dog" replaces the
+// seeded household) — EXCEPT keys where many can coexist. Local-rail only;
+// mem0 deletion stays a deliberate user action (✕).
+const ACCUMULATIVE_KEYS = new Set(['must-have', 'deal-breaker', 'mood board'])
+const factKey = (text) => {
+  const i = text.indexOf(':')
+  if (i <= 0) return null
+  const key = text.slice(0, i).trim().toLowerCase()
+  return ACCUMULATIVE_KEYS.has(key) ? null : key
+}
+
 export default function App() {
   const [view, setView] = useState('welcome') // welcome | interview | chat | taste | detail | tour
   const [generating, setGenerating] = useState(false)
@@ -47,7 +59,10 @@ export default function App() {
       const fresh = facts
         .filter((f) => !known.has(f.text))
         .map((f) => ({ ...f, id: `f${++factSeq.current}`, fresh: true }))
-      return fresh.length ? [...prev, ...fresh] : prev
+      if (!fresh.length) return prev
+      const superseded = new Set(fresh.map((f) => factKey(f.text)).filter(Boolean))
+      const kept = prev.filter((m) => !superseded.has(factKey(m.text)))
+      return [...kept, ...fresh]
     })
   }, [])
 
@@ -177,15 +192,13 @@ export default function App() {
       )}
 
       {view === 'interview' && (
-        <div className="main">
-          <InterviewView
-            profileId={profileId}
-            answers={answers}
-            onAnswer={onInterviewAnswer}
-            onDone={onInterviewDone}
-          />
-          {rail}
-        </div>
+        /* 08b owns its own right panel ("your taste, taking shape") — no rail */
+        <InterviewView
+          profileId={profileId}
+          answers={answers}
+          onAnswer={onInterviewAnswer}
+          onDone={onInterviewDone}
+        />
       )}
 
       {view === 'chat' && (
