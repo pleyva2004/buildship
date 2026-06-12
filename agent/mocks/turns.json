@@ -1,0 +1,26 @@
+{
+  "_comment": "Canned demo turns for the mock Nebius backend (design 04). Keyword match against the last user message, file order, first full match wins. These ARE the stage-fallback script — keep in sync with the rehearsed S1/S3 lines in design 06.",
+  "turns": [
+    {
+      "stage": "S1_SITUATE",
+      "keywords": ["austin"],
+      "reply": "Welcome back, Jake — Austin, finally! Since you're working from home three days a week, I've been prioritizing places with a daylight office, and I know Daisy needs a real yard. Give me a second to pull what's on the market right now that actually fits you — not just your filters."
+    },
+    {
+      "stage": "S2_RECOMMEND",
+      "keywords": ["what did you find"],
+      "reply": "Three worth your time, but one stands out: a 4BR in Travis Heights — bright corner lot, the office gets full morning light, fenced yard, and you can walk to South Congress. The other two are solid on price but darker inside, and you've told me bright-and-airy is non-negotiable. Want the details on Travis Heights?"
+    },
+    {
+      "stage": "S3_THE_ASK",
+      "keywords": ["show me", "version"],
+      "reply": "Generating your tour of the Travis Heights house now — same rooms, same architecture, restyled to your taste: pale oak, linen, that bright Scandinavian calm you keep pinning. This takes a few seconds."
+    },
+    {
+      "stage": "S5_REVEAL",
+      "keywords": ["pablo"],
+      "reply": "Here's the exact same house the way Pablo would live in it — walnut, brass, warm golden light. Same walls, same windows, two completely different homes. That's the point: one listing, every buyer sees their own."
+    }
+  ],
+  "default": "Tell me more about what you're looking for — neighborhood, light, how you actually live day to day — and I'll match it against what I already know about your taste."
+}
