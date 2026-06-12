@@ -67,22 +67,33 @@ flip Jake ⇄ Pablo in the top bar.
 
 | Endpoint | Returns |
 |---|---|
-| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled}` — action drives the UI (recommend / generate_tour) |
+| `POST /api/chat` `{profile_id, message}` | `{reply, action, recalled, new_facts}` — action drives the UI (recommend / generate_tour) |
 | `GET /api/context/{profile_id}` | All memories (powers the memory rail) |
 | `GET /api/listings` | `assets/listings/index.json` passthrough |
 | `POST /api/reset/{profile_id}` | Fresh conversation (rehearsals); memories untouched |
 | `GET /api/health` | Backend mode per layer |
+
+**Pending agent surface (design 08 §1)** — the app already calls these and transparently
+falls back to its deterministic mock twin on failure, so `404 Not Found` for them in the
+server log is expected, not a bug:
+
+| Endpoint | Returns |
+|---|---|
+| `POST /api/interview/next` `{profile_id, answers}` | `{id, prompt, chips, optional, asked, total}` — next adaptive interview question |
+| `POST /api/interview/answer` `{profile_id, answers, question_id, answer}` | `{new_facts, ranked, next}` — facts for the rail + re-ranked pool |
+| `POST /api/memory/{profile_id}/update` · `…/delete` | Memory hygiene (rail confirm/edit/remove → mem0) |
 
 ## Repo layout
 
 ```
 agent/            # Python: core.py (brain), server.py (FastAPI), loop.py (REPL),
                   #   clients/ (nebius, mem0 — mock|live), profiles/, mocks/, seed.py
-app/              # React/Vite: one page, view states (welcome → chat → tour)
+app/              # React/Vite: one page, view states (welcome → [interview] → chat →
+                  #   [taste passport] → [listing detail] → tour) — design 08 spine
 assets/listings/  # index.json + hero/{raw,restyled,video} per the filename convention
 pipeline/         # Engineer A: restyle + video + ffmpeg stitch (not yet built)
 specs/            # the frozen A↔B style-spec contract
-design/           # design docs 00–06 (read 00-overview first)
+design/           # design docs 00–08 (read 00-overview first)
 ```
 
 Each module has its own README: [agent/](agent/README.md) · [app/](app/README.md) ·
@@ -100,3 +111,5 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | mem0 (both profiles seeded) | ✅ | ✅ tested |
 | Tavily (listing discovery + `search_web_listings` tool) | ✅ | ✅ search tested; extract blocked by portals → manual photos (sanctioned) |
 | Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |
+| Design 08 frontend (interview + live re-rank, taste passport, listing detail, slider-first tour) | ✅ Playwright-verified end-to-end | n/a — UI; calls the pending interview surface and falls back |
+| Interview agent surface (`next_question`/`record_answer`/`rerank` + routes) | ✅ mock twin in `app/src/mock/interview.js` | pending (design 08 §5 item 1) |

@@ -1,4 +1,14 @@
-# Design 07 — Flow Optimizations & Active Learning (post-hackathon)
+# Design 08 — Flow Optimizations & Active Learning (post-hackathon)
+
+> **Implementation status (2026-06-12): frontend SHIPPED.** All 8 steps (3 new screens +
+> 5 refinements) built mock-first and Playwright-verified end-to-end on the zero-network
+> path. Remaining work is the §1 agent surface (§5 item 1): `next_question` /
+> `record_answer` / `rerank` in `agent/core.py` + `/api/interview/*`, `/api/memory/*`
+> routes in `server.py`. The app already calls those endpoints and falls back to its
+> deterministic mock twin (`app/src/mock/interview.js`) on failure — server-log 404s for
+> them are expected until the backend lands. Interview state (`answers`) is client-held,
+> so the backend surface can stay stateless.
+> (Authored externally as "Design 07"; renumbered 08 in-repo — 07 is the agent harness.)
 
 > The hackathon build nailed the spine: welcome → chat+memory-rail → generating → tour+slider.
 > This doc is the v0→v1 optimization plan. **One new non-negotiable: the agent actively LEARNS.**

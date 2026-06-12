@@ -90,7 +90,7 @@ The LLM converts a taste profile into ONE locked spec, injected verbatim into ev
   /listings/<id>/restyled/<profile_id>/   # edited stills
   /listings/<id>/video/<profile_id>/      # clips + final stitched tour.mp4
 /specs         # style spec JSONs (the A↔B contract)
-/design        # Engineer B design docs 00–06 (architecture decisions live here)
+/design        # Engineer B design docs 00–08 (architecture decisions live here)
 /deck          # pitch + future-work slides
 ```
 
@@ -113,6 +113,8 @@ The LLM converts a taste profile into ONE locked spec, injected verbatim into ev
 - LLM: **Llama 3.3 70B confirmed live** on Nebius (`api.studio.nebius.com/v1`); emits `<action>` tags reliably. Keyword backstop guarantees `generate_tour` fires on "show me my version" regardless.
 - mem0 live: both profiles seeded (14 atomic facts each, categorized). `make seed-live` is idempotent (wipe + re-seed). mem0's search API ignores `limit` — enforced client-side.
 - Recall filtering: `constraint`-category memories (render rules like "no people") are excluded from conversational recall — the LLM over-interprets them as life preferences.
+- **Design 08 (flow optimizations) frontend shipped.** New spine: welcome → [getting-to-know-you interview] → chat+rail → [taste passport] → recommendations → [listing detail] → generating → tour (slider-first). Active-learning loop: interview answers write facts to the rail AND re-rank a 5-listing candidate pool via a pure client-side scoring pass (no network, no numeric score in UI). Verified end-to-end with Playwright on the zero-network mock path.
+- Agent surface for the loop (`next_question` / `record_answer` / `rerank` in `agent/core.py` + `/api/interview/*`, `/api/memory/*` routes) is **pending backend work** (design 08 §5 item 1). Until then the frontend's calls 404 against the live server and fall back to the deterministic mock twin (`app/src/mock/interview.js`) — those 404s in the agent log are expected, not bugs. Interview state is client-held so the backend surface can stay stateless.
 
 ## 9. Build status (end of backend bring-up)
 
@@ -122,5 +124,6 @@ The LLM converts a taste profile into ONE locked spec, injected verbatim into ev
 | mem0 (seeded) | ✅ | ✅ tested |
 | Tavily | — | key in .env, client pending (B2) |
 | Composio | — | key in .env, client pending |
-| React app | ✅ clickable end-to-end | wired to API w/ mock fallback |
+| React app (design 08 spine: interview, taste passport, listing detail, slider-first tour) | ✅ clickable end-to-end, Playwright-verified | wired to API w/ mock fallback |
+| Interview/rerank agent surface (`/api/interview/*`, `/api/memory/*`) | ✅ client-side mock twin | **pending — frontend already calls it** |
 | Hero photos / restyles / tours | — | **pending (B2 blocks Engineer A)** |
