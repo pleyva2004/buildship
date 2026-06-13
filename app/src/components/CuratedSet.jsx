@@ -2,7 +2,7 @@ import { LISTINGS } from '../mock/data.js'
 import { fitChips, tradeChip } from '../mock/discovery.js'
 import { rawPhoto, PLACEHOLDER } from '../assets.js'
 import Stamp, { CompassIcon } from './Stamp.jsx'
-import { AREA_INTEL, areaShort } from '../mock/areas.js'
+import { AREA_INTEL, areaShort, liveAreaNotes } from '../mock/areas.js'
 
 // Design 10 §3 — the curated set: VISTA showing a few homes it chose and
 // telling you why. Lead = large card; alternates = compact rows. Never a grid,
@@ -19,12 +19,14 @@ const BADGE = {
   fresh: { cls: ' fresh', label: '✦ New find' },
 }
 
-function DiscoveryCard({ id, weights, lead, badge, saved, onSave, onDismiss, onOpen, onGenerate }) {
+function DiscoveryCard({ id, weights, lead, badge, saved, liveIntel, onSave, onDismiss, onOpen, onGenerate }) {
   const l = LISTINGS.find((x) => x.listing_id === id)
   if (!l) return null
   const chips = fitChips(l, weights, lead ? 3 : 2)
   const trade = tradeChip(l, weights)
-  const intel = AREA_INTEL[l.neighborhood] ?? l.neighborhood_note
+  // live research findings for this hood displace the canned intel
+  const intel = liveIntel?.get(l.neighborhood)?.notes.join(' · ')
+    ?? AREA_INTEL[l.neighborhood] ?? l.neighborhood_note
   const b = badge && BADGE[badge]
   return (
     <div className={`dcard ${lead ? 'lead' : 'alt'}`}>
@@ -68,8 +70,9 @@ function DiscoveryCard({ id, weights, lead, badge, saved, onSave, onDismiss, onO
   )
 }
 
-export default function CuratedSet({ set, saved, onSave, onDismiss, onMore, onOpen, onGenerate }) {
+export default function CuratedSet({ set, saved, memories, onSave, onDismiss, onMore, onOpen, onGenerate }) {
   const hoods = [...new Set(set.visible.map((id) => LISTINGS.find((l) => l.listing_id === id)?.neighborhood).filter(Boolean))]
+  const liveIntel = liveAreaNotes(memories)
   return (
     <div className="curated">
       <p className="setintro">
@@ -94,6 +97,7 @@ export default function CuratedSet({ set, saved, onSave, onDismiss, onMore, onOp
             lead={idx === 0}
             badge={idx === 0 ? (set.badges[id] || 'top') : set.badges[id]}
             saved={saved.includes(id)}
+            liveIntel={liveIntel}
             onSave={onSave}
             onDismiss={onDismiss}
             onOpen={onOpen}

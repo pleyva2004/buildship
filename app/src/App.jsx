@@ -326,6 +326,7 @@ export default function App() {
             messages={messages}
             profileId={profileId}
             thinking={thinking}
+            memories={memories}
             discovery={{ set: discCur.set, saved: discCur.state.saved }}
             onSend={sendMessage}
             onRefine={onRefine}
@@ -360,6 +361,7 @@ export default function App() {
           <ListingDetailView
             listingId={detailId}
             profileId={profileId}
+            memories={memories}
             onGenerate={() => setGenerating(true)}
             onBack={() => setView('chat')}
           />

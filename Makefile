@@ -2,7 +2,7 @@
 #
 # MODEL shorthand for any *-live target:  make agent-live MODEL=deepseek
 #   deepseek -> DeepSeek-V3.2-fast · qwen -> Qwen3.5-397B-A17B-fast
-#   llama -> Llama-3.3-70B (default) · or pass a full Nebius model id
+#   deepseek is the default · llama -> Llama-3.3-70B · or pass a full Nebius model id
 MODEL_deepseek = deepseek-ai/DeepSeek-V3.2-fast
 MODEL_qwen     = Qwen/Qwen3.5-397B-A17B-fast
 MODEL_llama    = meta-llama/Llama-3.3-70B-Instruct

@@ -54,7 +54,7 @@ function ThinkingBubble({ messages }) {
 // re-rank live, ALWAYS narrated (sparkle bubbles). Only the latest set is live;
 // earlier ones collapse to "updated below" (prototype behavior).
 export default function ChatView({
-  messages, profileId, thinking, discovery, onSend,
+  messages, profileId, thinking, discovery, memories, onSend,
   onRefine, onDismiss, onSaveListing, onMoreListings, onOpenListing, onGenerate,
 }) {
   const [draft, setDraft] = useState('')
@@ -93,6 +93,7 @@ export default function ChatView({
               <CuratedSet
                 set={discovery.set}
                 saved={discovery.saved}
+                memories={memories}
                 onSave={onSaveListing}
                 onDismiss={onDismiss}
                 onMore={onMoreListings}

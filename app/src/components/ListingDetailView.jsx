@@ -1,17 +1,20 @@
 import { LISTINGS, ROOM_LABELS, SPECS } from '../mock/data.js'
 import { rawPhoto, PLACEHOLDER } from '../assets.js'
 import Stamp from './Stamp.jsx'
-import { AREA_INTEL } from '../mock/areas.js'
+import { AREA_INTEL, liveAreaNotes } from '../mock/areas.js'
 
 // 06 · Listing Detail (design 08 §2) — gives the home weight so the
 // transformation feels meaningful: gallery + specs + neighborhood + expanded
 // "why this fits you." ONE hero CTA — "See this home in your style" — gets a
 // dedicated stage, not a card footer.
-export default function ListingDetailView({ listingId, profileId, onGenerate, onBack }) {
+export default function ListingDetailView({ listingId, profileId, memories, onGenerate, onBack }) {
   const listing = LISTINGS.find((l) => l.listing_id === listingId)
   if (!listing) return null
   const spec = SPECS[profileId]
   const galleryRooms = listing.rooms.length ? listing.rooms : ['living', 'kitchen', 'exterior']
+  // live research findings for this hood displace the canned intel
+  const intel = liveAreaNotes(memories).get(listing.neighborhood)?.notes.join(' · ')
+    ?? AREA_INTEL[listing.neighborhood] ?? listing.neighborhood_note
 
   return (
     <div className="detail">
@@ -52,7 +55,7 @@ export default function ListingDetailView({ listingId, profileId, onGenerate, on
           )}
 
           <h3>The neighborhood <Stamp /></h3>
-          <p className="blurb">{AREA_INTEL[listing.neighborhood] ?? listing.neighborhood_note}</p>
+          <p className="blurb">{intel}</p>
         </div>
 
         <div className="hero-cta-stage">

@@ -3,7 +3,7 @@ import { LISTINGS, SPECS } from '../mock/data.js'
 import { FEATURES, START_WEIGHTS, WEIGHT_CAP } from '../mock/discovery.js'
 import { applyNudges } from './TasteProfileView.jsx'
 import Stamp, { CompassIcon, UserIcon } from './Stamp.jsx'
-import { AREA_INTEL, parseAreaFact } from '../mock/areas.js'
+import { AREA_INTEL, liveAreaNotes } from '../mock/areas.js'
 
 // The "knows you" proof — sacred (design 05). Renders whatever memories the
 // API (or mock fallback) provides; facts recalled THIS turn pulse, facts
@@ -27,16 +27,7 @@ const GROUPS = [
 // over per hood as they land; canned intel (mock twin of agent/mocks/areas.json)
 // is the baseline "wider reading" so the tab is never empty on stage.
 function buildAreaNotes(memories, inPlayHoods) {
-  const live = new Map()
-  for (const m of memories) {
-    if (m.category !== 'area_research') continue
-    const parsed = parseAreaFact(m.text)
-    if (!parsed) continue
-    const entry = live.get(parsed.hood) ?? { notes: [], fresh: false }
-    entry.notes.push(parsed.note)
-    entry.fresh = entry.fresh || !!m.fresh
-    live.set(parsed.hood, entry)
-  }
+  const live = liveAreaNotes(memories)
   // in-play hoods first (Set preserves insertion order), then the wider reading
   const hoods = [...new Set([...inPlayHoods, ...live.keys(), ...Object.keys(AREA_INTEL)])]
   return hoods

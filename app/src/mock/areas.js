@@ -30,3 +30,20 @@ export function parseAreaFact(text) {
   const m = /^(.+?)(?:\s*\(for you\))?\s+—\s+(.+)$/.exec(text ?? '')
   return m ? { hood: m[1], note: m[2] } : null
 }
+
+// Live area_research memories grouped per hood — Map(hood -> {notes, fresh}).
+// Shared by the rail's Area tab, the card area notes, and the detail view, so
+// real research displaces the canned intel everywhere it shows.
+export function liveAreaNotes(memories) {
+  const live = new Map()
+  for (const m of memories ?? []) {
+    if (m.category !== 'area_research') continue
+    const parsed = parseAreaFact(m.text)
+    if (!parsed) continue
+    const entry = live.get(parsed.hood) ?? { notes: [], fresh: false }
+    entry.notes.push(parsed.note)
+    entry.fresh = entry.fresh || !!m.fresh
+    live.set(parsed.hood, entry)
+  }
+  return live
+}
