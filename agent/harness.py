@@ -5,16 +5,26 @@ OpenAI-compatible Nebius endpoint via a custom AsyncOpenAI client. This module
 is imported lazily by core.py so the mock path never needs openai-agents.
 """
 
+import contextvars
 import json
 
 import httpx
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, Runner, set_tracing_disabled
+from agents.exceptions import MaxTurnsExceeded
 from openai import AsyncOpenAI
 
 from agent import config
 from agent.tools import ALL_TOOLS, TurnState
 
 set_tracing_disabled(True)  # tracing would call OpenAI proper; we have no key for it
+
+# The running turn's state, visible to the transport: when a tool flips
+# state.wrap_up, the next /chat/completions goes out with tool_choice="none" —
+# the model CANNOT keep calling tools, it can only write the reply. (Llama
+# ignores "STOP" written into tool results; removing the option is the only
+# brake that holds.)
+_TURN_STATE: contextvars.ContextVar[TurnState | None] = contextvars.ContextVar(
+    "vista_turn_state", default=None)
 
 INSTRUCTIONS = """You are VISTA, a personal home-buying agent. You already know \
 your client deeply — their taste, life situation, and constraints — and you speak \
@@ -75,6 +85,10 @@ class _NebiusCompatTransport(httpx.AsyncHTTPTransport):
                     if "strict" in t.get("function", {}):
                         t["function"].pop("strict")
                         changed = True
+                state = _TURN_STATE.get()
+                if state is not None and state.wrap_up and body.get("tools"):
+                    body["tool_choice"] = "none"  # the turn is done — prose only
+                    changed = True
                 if changed:
                     headers = {k: v for k, v in request.headers.items()
                                if k.lower() != "content-length"}
@@ -109,10 +123,35 @@ def build_agent(inventory: list[dict]) -> Agent:
     )
 
 
+def _salvage_reply(state: TurnState) -> str:
+    """Max-turns backstop: the tools already did the turn's work (state holds
+    it) — keep that instead of discarding the live turn for a mock one."""
+    if state.researching:
+        areas = " and ".join(state.researching)
+        return (f"I'm pulling what's current on {areas} for you right now — give me a "
+                f"moment. I'll come back with what I find and the homes that fit best.")
+    if (state.action or {}).get("type") == "recommend":
+        return ("Here are the homes that fit you best right now, top pick first. "
+                "Tell me what to change and I'll re-rank.")
+    if (state.action or {}).get("type") == "generate_tour":
+        return "Your tour is rendering now — same rooms, your style. One moment."
+    return "Let me gather what I know and come back to that — ask me again in a moment."
+
+
 def run_turn(agent: Agent, state: TurnState, input_list: list, user_msg: str) -> tuple[str, list]:
     """One conversation turn through the tool loop. Returns (reply, next input_list)."""
     if not config.NEBIUS_API_KEY:
         raise RuntimeError("NEBIUS_API_KEY not set")
     items = list(input_list) + [{"role": "user", "content": user_msg}]
-    result = Runner.run_sync(agent, items, context=state, max_turns=10)
-    return str(result.final_output), result.to_input_list()
+    token = _TURN_STATE.set(state)
+    try:
+        result = Runner.run_sync(agent, items, context=state, max_turns=10)
+        return str(result.final_output), result.to_input_list()
+    except MaxTurnsExceeded:
+        # shouldn't happen with the wrap-up brake, but never lose a live turn:
+        # the actions/facts in state are real — answer from them.
+        print("[harness] max turns hit — salvaging the turn from tool state")
+        reply = _salvage_reply(state)
+        return reply, items + [{"role": "assistant", "content": reply}]
+    finally:
+        _TURN_STATE.reset(token)

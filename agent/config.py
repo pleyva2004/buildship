@@ -41,7 +41,7 @@ def backend(client: str = "") -> str:
 # Nebius Token Factory (OpenAI-compatible)
 NEBIUS_API_KEY = os.environ.get("NEBIUS_API_KEY", "")
 NEBIUS_BASE_URL = os.environ.get("NEBIUS_BASE_URL", "https://api.studio.nebius.com/v1/")
-NEBIUS_MODEL = os.environ.get("NEBIUS_MODEL", "deepseek-ai/DeepSeek-V3.2-fast")
+NEBIUS_MODEL = os.environ.get("NEBIUS_MODEL", "Qwen/Qwen3.5-397B-A17B-fast")
 
 # Filled in as the layers land (designs 01, 03):
 MEM0_API_KEY = os.environ.get("MEM0_API_KEY", "")

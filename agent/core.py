@@ -110,7 +110,8 @@ class AgentSession:
 
         if self._agent is None:
             self._agent = harness.build_agent(load_listings()["listings"])
-        state = TurnState(profile_id=self.profile_id, memory=self.memory, recalled=list(recalled))
+        state = TurnState(profile_id=self.profile_id, memory=self.memory,
+                          user_msg=user_msg, recalled=list(recalled))
 
         msg = build_turn_message(user_msg, recalled)
         # Jake's hook #2: the client asked about an area -> research is GUARANTEED.

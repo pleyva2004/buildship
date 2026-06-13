@@ -7,6 +7,7 @@ state.action / state.recalled.
 """
 
 import json
+import re
 from dataclasses import dataclass, field
 
 from agents import RunContextWrapper, function_tool
@@ -15,6 +16,18 @@ from agent.clients import tavily_client
 from agent.clients.mem0_client import Mem0Client
 
 VALID_ACTIONS = {"recommend", "generate_tour"}
+
+# Llama ignores "STOP calling tools" written into tool RESULTS — the only
+# reliable brake is removing the tools. Once a turn's work is done (action set,
+# blind research dispatched, budget spent, or a repeated call), wrap_up=True and
+# the harness forces tool_choice="none" on the next model call, so the only
+# move left is writing the reply.
+TOOL_BUDGET = 6  # tool calls per turn before the forced wrap-up
+
+# mirror of core.GENERATE_RE plus tour-ish phrasings — generate_tour may only
+# fire when the CLIENT asked for it this turn, never as a model improvisation
+TOUR_INTENT_RE = re.compile(
+    r"show me|my version|my style|in (?:my|our) (?:style|taste)|tour|restyle", re.I)
 
 
 def _log(tool: str, detail: str) -> None:
@@ -34,15 +47,25 @@ TRACE_LABEL = {
 
 
 def _trace(state, tool: str, suffix: str = "") -> None:
+    state.tool_calls += 1
+    if state.tool_calls >= TOOL_BUDGET:
+        state.wrap_up = True
     entry = TRACE_LABEL.get(tool, tool) + (f" {suffix}" if suffix else "")
     if entry not in state.trace:
         state.trace.append(entry)
+
+
+def _soft_wrap(state, grace: int = 2) -> None:
+    """Shrink the remaining tool budget to `grace` calls — enough for a
+    save_memory or a recall, not enough for a spiral."""
+    state.tool_calls = max(state.tool_calls, TOOL_BUDGET - grace)
 
 
 @dataclass
 class TurnState:
     profile_id: str
     memory: Mem0Client
+    user_msg: str = ""  # the raw client message this turn (tool guards read it)
     recalled: list = field(default_factory=list)  # facts shown in the memory rail
     action: dict | None = None  # at most one UI action per turn; last write wins
     new_facts: list = field(default_factory=list)  # learned this turn → "✓ Saved" chips
@@ -51,6 +74,9 @@ class TurnState:
     # research dispatched with NO prior intel: hold cards this turn — the UI's
     # follow-up turn presents them once the intel lands (two-phase turn)
     research_blind: bool = False
+    tool_calls: int = 0  # per-turn count; TOOL_BUDGET trips the wrap-up
+    wrap_up: bool = False  # harness forces tool_choice="none" on the next model call
+    researched: set = field(default_factory=set)  # (area, kind) asked this turn — repeats wrap up
 
 
 @function_tool
@@ -93,13 +119,16 @@ def recommend_listings(ctx: RunContextWrapper[TurnState], listing_ids: list[str]
     _trace(ctx.context, "recommend_listings")
     if ctx.context.research_blind:
         # two-phase turn: cards wait for the research; steer the model to wrap up
+        _soft_wrap(ctx.context, grace=1)
         return ("Cards are HELD until your research lands — you'll present them in "
                 "your next reply. Stop calling tools and answer in prose now: tell "
                 "the client what you're looking into.")
     if (ctx.context.action or {}).get("type") == "recommend":
+        ctx.context.wrap_up = True
         return "Cards are already displayed. STOP calling tools — write your final reply now."
     listing_ids = listing_ids[:3]
     ctx.context.action = {"type": "recommend", "listing_ids": listing_ids}
+    ctx.context.wrap_up = True  # the turn's job is done — all that's left is prose
     return f"Cards displayed for: {', '.join(listing_ids)}. Now write your final reply in prose."
 
 
@@ -109,7 +138,13 @@ def generate_tour(ctx: RunContextWrapper[TurnState], listing_id: str) -> str:
     they ask to see a home in their style / their version."""
     _log("generate_tour", listing_id)
     _trace(ctx.context, "generate_tour")
+    if not TOUR_INTENT_RE.search(ctx.context.user_msg):
+        # spiral guard: the model reaches for the tour when other tools refuse —
+        # it may only fire on an explicit ask from the client
+        return ("The client has NOT asked to see a home in their style — do not "
+                "start a tour. Answer their actual question in prose.")
     ctx.context.action = {"type": "generate_tour", "listing_id": listing_id}
+    ctx.context.wrap_up = True
     return f"Tour generation started for {listing_id}. Tell the client it's rendering in their taste."
 
 
@@ -162,13 +197,21 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
 
     state = ctx.context
     _log("research_area", f"{area} (focus: {focus or 'general'})")
-    if sum(1 for t in state.trace if t.startswith("researched")) >= 2:
-        return ("STOP researching — you have plenty. Write your final reply now "
-                "using what you already learned.")
     area = area.strip().title()[:28]
-    _trace(state, "research_area", area)  # a place name, not a sentence — keep tags clean
     personalized = bool(focus) and focus != researcher.GENERAL
     fkind = f"focus:{focus.strip().lower()[:48]}" if personalized else "general"
+    # the model retries identical calls verbatim when told to wait — one strike
+    # and the harness pulls the tools (Zilker × 8 was real)
+    if (area, fkind) in state.researched:
+        state.wrap_up = True
+        return (f"You ALREADY researched {area} this turn. Write your final reply "
+                f"now from what you have.")
+    state.researched.add((area, fkind))
+    if sum(1 for t in state.trace if t.startswith("researched")) >= 2:
+        state.wrap_up = True
+        return ("STOP researching — you have plenty. Write your final reply now "
+                "using what you already learned.")
+    _trace(state, "research_area", area)  # a place name, not a sentence — keep tags clean
 
     if researcher.has(area, "general"):
         intel = researcher.research_area(area)  # general intel, cached
@@ -184,6 +227,7 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
         return intel
 
     if researcher.pending(area, "general"):
+        _soft_wrap(state, grace=1)  # nothing left to research — one call, then prose
         return (f"Research on {area} is already running — answer from what you know; "
                 f"specifics arrive momentarily.")
     # first mention: dispatch the GENERAL pass; never block the reply
@@ -191,6 +235,7 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
     if area not in state.researching:
         state.researching.append(area)
     state.research_blind = True
+    _soft_wrap(state)  # room to save a fact or two, then narrate and end the turn
     return (f"Research on {area} dispatched — results arrive shortly. Tell the client "
             f"you're digging into {area} right now and what you're checking for them. "
             f"Do NOT present or recommend listings this turn — you'll present them "
