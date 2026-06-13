@@ -13,9 +13,10 @@ agent/loop.py (terminal REPL) ────────────────�
             ┌────────────────────────────────────────────────────────┴──┐
             │ MOCK (default): canned turns + <action> parse              │
             │ LIVE: OpenAI Agents SDK tool loop on Nebius (harness.py)   │
-            │   tools: recall_memories │ search_web_listings (Tavily)    │
-            │          recommend_listings │ generate_tour                │
-            └─ clients: nebius │ mem0_client │ tavily_client ← MOCK|LIVE ┘
+            │   tools: recall_memories · save_memory · revise_memory     │
+            │   search_web_listings (Tavily) · whats_nearby (Composio)   │
+            │   research_area · recommend_listings · generate_tour       │
+            └─ clients: nebius · mem0 · tavily · composio ← MOCK|LIVE    ┘
 ```
 
 The live path is a real tool-calling harness (design 07): the model itself calls
@@ -27,6 +28,28 @@ interface, selected by `VISTA_BACKEND=mock|live` (per-client override: `NEBIUS_B
 `MEM0_BACKEND`, …). **Mock is the default and the on-stage fallback** — the entire demo
 runs with zero keys and zero network. The React app additionally falls back to its own
 local mock (`app/src/mock/`) if the API is unreachable.
+
+## Sponsors — one journey, every sponsor load-bearing
+
+The whole product is demonstrable in a single live session, and each sponsor below sits on
+the critical path: pull any one and the buyer loses something they can feel — not just a
+logo on a slide.
+
+**The trace (one session, all of them fire):** *"We're finally ready to look in Austin"* →
+the agent reasons on **Nebius**, recalls taste from **mem0**, hits **Tavily** for live
+market color, asks **Composio** what's walkable near the home, recommends real listings →
+*"see this home in my style"* → **Nebius** distills the style spec → restyled cinematic tour.
+
+| Sponsor | What it unlocks for the buyer | Why it matters |
+|---|---|---|
+| **Nebius Token Factory** | The agent that actually *thinks* — it carries the conversation, reads the buyer's taste, decides which homes to surface, and writes the style direction behind every tour. | Every word of reasoning the buyer feels runs on Nebius. |
+| **Tavily** | Real, on-the-market listings instead of stock demos — the tour is of a house the buyer could actually walk into this weekend. | Proves the homes are real, not props — the credibility layer. |
+| **Composio** | Turns a listing into a neighborhood — "what's a short walk from here?" answered around what *this* buyer cares about (a dog park for the dog, restaurants for the host). | The buyer's world flows in as context, via Composio. |
+| **mem0** | The memory that makes it personal — every taste, life detail, and preference the AI knows, shown live in the memory rail beside the chat. | The "AI that knows you" *is* mem0. |
+
+Every sponsor is on the critical path, and each ships with a built-in offline fallback — so
+the same journey demos flawlessly on stage with nothing live to break. See it whole:
+`make serve-live` + `make app`, then walk the trace above.
 
 ## Setup
 
@@ -91,7 +114,7 @@ flip Jake ⇄ Pablo in the top bar.
 
 ```
 agent/            # Python: core.py (brain), server.py (FastAPI), loop.py (REPL),
-                  #   clients/ (nebius, mem0 — mock|live), profiles/, mocks/, seed.py
+                  #   clients/ (nebius, mem0, tavily, composio — mock|live), profiles/, mocks/, seed.py
 app/              # React/Vite: one page, view states (welcome → [interview] → chat →
                   #   [taste passport] → [listing detail] → tour) — design 08 spine
 assets/listings/  # index.json + hero/{raw,restyled,video} per the filename convention
@@ -112,12 +135,12 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 
 | Layer | Mock | Live |
 |---|---|---|
-| Nebius LLM via Agents SDK harness (Llama 3.3 70B) | ✅ | ✅ tested — tools fire end-to-end |
+| Nebius LLM via Agents SDK harness (**Qwen3.5-397B** default; Llama 3.3 70B / DeepSeek alt) | ✅ | ✅ tested — tools fire end-to-end |
 | mem0 (both profiles seeded) | ✅ | ✅ tested |
 | Tavily (listing discovery + `search_web_listings` tool) | ✅ | ✅ search tested; extract blocked by portals → manual photos (sanctioned) |
 | Hero photos — **austin_01 locked** (1724 Canon Yeomans Trl; 16 raw rooms in `assets/listings/austin_01/raw/`) | n/a | ✅ merged from `pablo/diffusion-pipeline`; app's hero card/tour reads these pixels |
 | Nebius Object Storage asset pipe (`make assets-pull` / `assets-push`) | n/a | ✅ authenticated, dry-runs green; `index.json` clobber-protected |
-| Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |
+| Composio (Google Maps via `whats_nearby` tool) | ✅ canned POIs | ✅ live v3 toolkit — personalized nearby places, writes area facts to mem0 |
 | Design 08b interview experience (phases, voice\|text modes, orb, taste panel, passport) | ✅ Playwright-verified end-to-end | ✅ same UI; live engine answers |
 | Voice v1 — hold-to-speak → `/api/voice/transcribe` (local faster-whisper, offline) | n/a — needs the server | ✅ tested (synthesized speech word-perfect; warm transcribe ~0.4s; human-verified) |
 | Interview engine (`agent/interview.py`: adaptive planner, mem0 writes, scorer, routes; always ends on the open catch-all question) | ✅ exact parity with `app/src/mock/interview.js` (tested) | ✅ tested end-to-end — adaptive questions, distilled fact tidbits → real mem0 with provenance |
