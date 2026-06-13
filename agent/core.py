@@ -138,6 +138,11 @@ class AgentSession:
         # model-initiated action (cards wait for the intel; a spurious tour
         # must not hijack the turn). The UI sends a follow-up turn once the
         # intel lands, and THAT reply presents the listings grounded in it.
+        REFUSAL = ("not able to", "outside of the scope", "as an ai", "i cannot", "unable to")
+        if state.research_blind and (len(reply) < 30 or any(r in reply.lower() for r in REFUSAL)):
+            areas = ", ".join(state.researching) or "the area"
+            reply = (f"Let me pull what's current on {areas} for you — one moment. "
+                     f"I'll come right back with what I find and the homes that fit.")
         if state.research_blind and action:
             print(f"[vista:turn] holding {action.get('type')} — presenting after research lands")
             action = None

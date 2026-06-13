@@ -26,7 +26,7 @@ def _canned() -> dict:
 
 def _mock(area: str, interests: list[str]) -> list[dict]:
     data = _canned()
-    key = next((k for k in data if k.lower() in area.lower() or area.lower() in k.lower()), "default")
+    key = next((k for k in data if k.lower() in area.lower()), "default")
     places = data[key]
     if interests:  # personalized ordering: interest-matched kinds first
         wants = [i.lower() for i in interests]

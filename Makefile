@@ -32,7 +32,7 @@ serve:            ## agent API on :8001 (mock backends by default; docs at /docs
 	python3 -m uvicorn agent.server:app --port 8001 --reload
 
 serve-live:       ## agent API, everything live (MODEL=deepseek|qwen|llama|<id>)
-	$(MODEL_ENV) VISTA_BACKEND=live python3 -m uvicorn agent.server:app --port 8001
+	$(MODEL_ENV) VISTA_BACKEND=live python3 -m uvicorn agent.server:app --port 8001 --reload
 
 seed:             ## flatten profiles -> memories (mock; sanity check)
 	python3 -m agent.seed

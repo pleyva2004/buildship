@@ -1,10 +1,14 @@
 import { LISTINGS } from '../mock/data.js'
 import { fitChips, tradeChip } from '../mock/discovery.js'
 import { rawPhoto, PLACEHOLDER } from '../assets.js'
+import Stamp, { CompassIcon } from './Stamp.jsx'
+import { AREA_INTEL, areaShort } from '../mock/areas.js'
 
 // Design 10 §3 — the curated set: VISTA showing a few homes it chose and
 // telling you why. Lead = large card; alternates = compact rows. Never a grid,
 // never a score. Badges: top pick / moved up / new find.
+// Design 11: each card carries an AREA NOTE — researched intel about the
+// place, visually a separate channel from the moss why-you chips.
 
 const photoBg = (hue) =>
   `linear-gradient(150deg, hsl(${hue} 42% 72%), hsl(${hue - 6} 38% 58%) 55%, hsl(${hue - 10} 34% 42%))`
@@ -20,6 +24,7 @@ function DiscoveryCard({ id, weights, lead, badge, saved, onSave, onDismiss, onO
   if (!l) return null
   const chips = fitChips(l, weights, lead ? 3 : 2)
   const trade = tradeChip(l, weights)
+  const intel = AREA_INTEL[l.neighborhood] ?? l.neighborhood_note
   const b = badge && BADGE[badge]
   return (
     <div className={`dcard ${lead ? 'lead' : 'alt'}`}>
@@ -41,6 +46,18 @@ function DiscoveryCard({ id, weights, lead, badge, saved, onSave, onDismiss, onO
           {chips.map((c) => <span className="dchip fit" key={c}>✓ {c}</span>)}
           {trade && <span className="dchip trade">{trade}</span>}
         </div>
+        {intel && (
+          <div className="areanote">
+            <span className="an-ic"><CompassIcon /></span>
+            <div className="an-body">
+              <div className="an-top">
+                <span className="an-hood">{l.neighborhood}</span>
+                <Stamp />
+              </div>
+              <div className="an-text">{lead ? intel : areaShort(intel)}</div>
+            </div>
+          </div>
+        )}
         <div className="dactions">
           {lead && <button className="btn-primary" onClick={() => onGenerate(id)}>See it in your style</button>}
           <button className="btn-ghost" onClick={() => onOpen(id)}>View home</button>
@@ -52,11 +69,22 @@ function DiscoveryCard({ id, weights, lead, badge, saved, onSave, onDismiss, onO
 }
 
 export default function CuratedSet({ set, saved, onSave, onDismiss, onMore, onOpen, onGenerate }) {
+  const hoods = [...new Set(set.visible.map((id) => LISTINGS.find((l) => l.listing_id === id)?.neighborhood).filter(Boolean))]
   return (
     <div className="curated">
       <p className="setintro">
         <b>{set.visible.length} homes</b> {set.intro}
       </p>
+      {/* the narration seam (design 11 §4) — "VISTA went and looked" */}
+      {hoods.length > 0 && (
+        <div className="researched-line">
+          <span className="rl-ic"><CompassIcon /></span>
+          <span>
+            These sit across <b>{hoods.length} {hoods.length === 1 ? 'neighborhood' : 'neighborhoods'}</b> — I read up on each.
+            That intel lives under <b>The area</b> tab, kept separate from your preferences.
+          </span>
+        </div>
+      )}
       <div className="cardset">
         {set.visible.map((id, idx) => (
           <DiscoveryCard

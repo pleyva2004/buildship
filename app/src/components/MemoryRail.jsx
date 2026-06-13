@@ -2,25 +2,69 @@ import { useState } from 'react'
 import { LISTINGS, SPECS } from '../mock/data.js'
 import { FEATURES, START_WEIGHTS, WEIGHT_CAP } from '../mock/discovery.js'
 import { applyNudges } from './TasteProfileView.jsx'
+import Stamp, { CompassIcon, UserIcon } from './Stamp.jsx'
+import { AREA_INTEL, parseAreaFact } from '../mock/areas.js'
 
 // The "knows you" proof — sacred (design 05). Renders whatever memories the
 // API (or mock fallback) provides; facts recalled THIS turn pulse, facts
 // learned THIS session animate in. Design 08 (03) refinements: stated/inferred
 // provenance marks, confirm/edit/remove hygiene, and a readiness indicator so
-// the chat has a finish line.
+// the chat has a finish line. Design 11: two tabs — what's about YOU vs what
+// VISTA researched about the AREA — so city facts never wear Jake's framing.
 
 const GROUPS = [
   { label: 'Life', match: (m) => m.category === 'life_situation' && !m.text.startsWith('Must-have') },
   { label: 'Taste', match: (m) => ['taste', 'materials'].includes(m.category) },
   { label: 'Inspiration', match: (m) => m.category === 'mood_board' },
   { label: 'Must-haves', match: (m) => m.category === 'life_situation' && m.text.startsWith('Must-have') },
-  { label: 'Area research', match: (m) => m.category === 'area_research' },
   // open lane — anything off-taxonomy (category 'other' etc.) still shows
   { label: 'More', match: (m) => !['life_situation', 'taste', 'materials', 'mood_board', 'constraint', 'area_research'].includes(m.category) },
   // 'constraint' is intentionally not rendered — render rules, not user context
+  // 'area_research' lives in The area tab — world facts, not Jake facts
 ]
 
+// The area tab's notes: live research findings (area_research memories) take
+// over per hood as they land; canned intel (mock twin of agent/mocks/areas.json)
+// is the baseline "wider reading" so the tab is never empty on stage.
+function buildAreaNotes(memories, inPlayHoods) {
+  const live = new Map()
+  for (const m of memories) {
+    if (m.category !== 'area_research') continue
+    const parsed = parseAreaFact(m.text)
+    if (!parsed) continue
+    const entry = live.get(parsed.hood) ?? { notes: [], fresh: false }
+    entry.notes.push(parsed.note)
+    entry.fresh = entry.fresh || !!m.fresh
+    live.set(parsed.hood, entry)
+  }
+  // in-play hoods first (Set preserves insertion order), then the wider reading
+  const hoods = [...new Set([...inPlayHoods, ...live.keys(), ...Object.keys(AREA_INTEL)])]
+  return hoods
+    .map((hood) => ({
+      hood,
+      notes: live.get(hood)?.notes ?? (AREA_INTEL[hood] ? [AREA_INTEL[hood]] : []),
+      fresh: live.get(hood)?.fresh ?? false,
+      inPlay: inPlayHoods.includes(hood),
+    }))
+    .filter((n) => n.notes.length)
+}
+
 const PROVENANCE_LABEL = { stated: 'you said', inferred: 'inferred', imported: 'imported', researched: 'researched' }
+// live memories (mem0_client._norm) carry `source`; mocks carry `provenance`
+const provOf = (m) => m.provenance ?? m.source ?? 'stated'
+
+function RailTabs({ tab, setTab, count }) {
+  return (
+    <div className="railtabs">
+      <button className={tab === 'you' ? 'on' : ''} onClick={() => setTab('you')}>
+        <UserIcon />You
+      </button>
+      <button className={tab === 'area' ? 'on' : ''} onClick={() => setTab('area')}>
+        <CompassIcon />The area<span className="cnt">{count}</span>
+      </button>
+    </div>
+  )
+}
 
 // what VISTA still needs before matching feels honest (design 08 (03))
 const READINESS = [
@@ -30,19 +74,48 @@ const READINESS = [
   { label: 'a taste cue', has: (ms) => ms.some((m) => m.category === 'taste' || m.category === 'mood_board') },
 ]
 
-export default function MemoryRail({ profileId, spec: specOverride, weights, savedIds = [], memories, recalledIds, nudges, onEdit, onRemove, onConfirm, onOpenTaste }) {
+export default function MemoryRail({ profileId, spec: specOverride, weights, savedIds = [], memories, recalledIds, nudges, inPlayHoods = [], onEdit, onRemove, onConfirm, onOpenTaste }) {
   const spec = applyNudges(specOverride ?? SPECS[profileId], nudges ?? { warmth: 0, ornate: 0, light: 0 })
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [tab, setTab] = useState('you')
 
   const missing = READINESS.filter((r) => !r.has(memories))
   const startW = START_WEIGHTS[profileId] ?? START_WEIGHTS.guest_v1
   const weightRows = weights
     ? Object.keys(weights).sort((a, b) => weights[b] - weights[a]).slice(0, 5)
     : []
+  const areaNotes = buildAreaNotes(memories, inPlayHoods)
+
+  if (tab === 'area') {
+    return (
+      <aside className="rail">
+        <RailTabs tab={tab} setTab={setTab} count={areaNotes.length} />
+        <div className="areapanel">
+          <h2>What VISTA researched</h2>
+          <p className="dsub">
+            Neighborhood intel VISTA gathered out in the world — about the <b>places</b>, never folded into what it knows about you.
+          </p>
+          {areaNotes.map((n) => (
+            <div className={'anote' + (n.inPlay ? ' inset' : '') + (n.fresh ? ' fresh' : '')} key={n.hood}>
+              <div className="ahood">
+                <span className="hn">{n.hood}</span>
+                <Stamp />
+              </div>
+              {n.inPlay && <div className="ins">In your current set</div>}
+              {n.notes.map((t, i) => (
+                <p className="at" key={i}>{t}</p>
+              ))}
+            </div>
+          ))}
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="rail">
+      <RailTabs tab={tab} setTab={setTab} count={areaNotes.length} />
       {/* merged rail (design 10b §4): weights + saved sit ABOVE memories —
           a reaction moves a bar AND lands a memory chip, one story */}
       {weights && (
@@ -124,8 +197,8 @@ export default function MemoryRail({ profileId, spec: specOverride, weights, sav
                 ) : (
                   <>
                     <span className="mem-text">{m.text.replace(/^Must-have:\s*/, '')}</span>
-                    <span className={`prov ${m.provenance ?? 'stated'}`}>
-                      {m.confirmed ? 'confirmed' : PROVENANCE_LABEL[m.provenance] ?? 'you said'}
+                    <span className={`prov ${provOf(m)}`}>
+                      {m.confirmed ? 'confirmed' : PROVENANCE_LABEL[provOf(m)] ?? 'you said'}
                     </span>
                     <span className="mem-actions">
                       {!m.confirmed && (

@@ -18,7 +18,7 @@ export const FEATURES = {
 
 const TRADE = {
   light: 'fewer south windows', walkable: 'more car-dependent', yard: 'smaller yard',
-  value: 'above budget', character: 'newer build', open: 'closed-off kitchen', quiet: 'busier street',
+  value: 'priced at a premium', character: 'newer build', open: 'closed-off kitchen', quiet: 'busier street',
 }
 
 export const REFINES = [

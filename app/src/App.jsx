@@ -10,7 +10,7 @@ import TourView from './components/TourView.jsx'
 import { chat, getContext, updateMemory, deleteMemory, finishInterview, resetSession, researchStatus } from './api.js'
 import { rankListings } from './mock/interview.js'
 import * as discovery from './mock/discovery.js'
-import { SPECS } from './mock/data.js'
+import { LISTINGS, SPECS } from './mock/data.js'
 
 // The spine (design 08): WELCOME ─► [GETTING TO KNOW YOU] ─► CHAT+RAIL ─►
 // [TASTE PROFILE] ─► RECOMMENDATIONS (inline) ─► [LISTING DETAIL] ─►
@@ -261,6 +261,12 @@ export default function App() {
     setView('tour')
   }, [])
 
+  // distinct neighborhoods of the visible set — the Area tab flags these
+  // "in your current set" and floats them first (design 11)
+  const inPlayHoods = disc[profileId]
+    ? [...new Set(discCur.set.visible.map((id) => LISTINGS.find((l) => l.listing_id === id)?.neighborhood).filter(Boolean))]
+    : []
+
   const rail = (
     <MemoryRail
       profileId={profileId}
@@ -270,6 +276,7 @@ export default function App() {
       memories={memories}
       recalledIds={view === 'chat' ? recalledIds : []}
       nudges={nudges[profileId]}
+      inPlayHoods={inPlayHoods}
       onConfirm={confirmMemory}
       onEdit={editMemory}
       onRemove={removeMemory}

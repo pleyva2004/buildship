@@ -1,5 +1,7 @@
 import { LISTINGS, ROOM_LABELS, SPECS } from '../mock/data.js'
 import { rawPhoto, PLACEHOLDER } from '../assets.js'
+import Stamp from './Stamp.jsx'
+import { AREA_INTEL } from '../mock/areas.js'
 
 // 06 · Listing Detail (design 08 §2) — gives the home weight so the
 // transformation feels meaningful: gallery + specs + neighborhood + expanded
@@ -49,8 +51,8 @@ export default function ListingDetailView({ listingId, profileId, onGenerate, on
             <p className="tradeoff">Honest tradeoff: {listing.tradeoff[profileId]}.</p>
           )}
 
-          <h3>The neighborhood</h3>
-          <p className="blurb">{listing.neighborhood_note}</p>
+          <h3>The neighborhood <Stamp /></h3>
+          <p className="blurb">{AREA_INTEL[listing.neighborhood] ?? listing.neighborhood_note}</p>
         </div>
 
         <div className="hero-cta-stage">

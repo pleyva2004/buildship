@@ -14,6 +14,7 @@
   --shadow: 0 2px 16px rgba(63, 50, 35, 0.08);
   --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -93,8 +94,23 @@ button {
   from { transform: scale(1) translate(0, 0); }
   to { transform: scale(1.12) translate(-2%, 1.5%); }
 }
+/* scrim — calms the photo behind the headline so the type sits on a quiet
+   field; the ambient still breathes at the edges */
+.welcome::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 74% 66% at 50% 44%,
+    rgba(243, 238, 231, 0.95),
+    rgba(243, 238, 231, 0.62) 62%,
+    rgba(243, 238, 231, 0.12)
+  );
+  pointer-events: none;
+}
 .welcome-content {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -800,3 +816,140 @@ button {
 .wbar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #d8b58c, var(--clay)); transition: width 0.5s ease; }
 .rail-saved .saved-item { font-size: 12.5px; color: var(--ink-soft); padding: 4px 0; }
 .turn-trace { font-size: 11.5px; color: var(--ink-soft); margin: -8px 0 14px 4px; letter-spacing: 0.02em; }
+
+/* ---------- 11 area research provenance — two channels, never confused ---------- */
+
+/* provenance stamps — the one shared system. "you" = warm sans, clay wash ·
+   "researched" = mono, hollow outline, compass (the showing-its-work voice). */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.stamp svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; }
+.stamp.you {
+  font-family: var(--sans);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 10px;
+  border-color: rgba(169, 113, 75, 0.3);
+  color: var(--clay-deep);
+  background: rgba(169, 113, 75, 0.08);
+}
+
+/* rail tabs — You / The area */
+.railtabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.railtabs button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 4px;
+  margin-bottom: -1px;
+  background: none;
+  border-radius: 0;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+}
+.railtabs button.on { color: var(--ink); border-bottom-color: var(--clay); }
+.railtabs button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.9; }
+.railtabs .cnt {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--sand-deep);
+  color: var(--ink-soft);
+}
+
+/* rail area panel — one researched note card per neighborhood */
+.areapanel .dsub { font-size: 12px; color: var(--ink-soft); margin: 4px 0 14px; line-height: 1.5; }
+.areapanel .dsub b { color: var(--ink); font-weight: 600; }
+.anote {
+  background: var(--sand);
+  border: 1px solid var(--line);
+  border-left: 2px solid #cdc2ae;
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 10px;
+}
+.anote.inset { border-left-color: var(--clay); }
+.anote.fresh { animation: memIn 0.7s ease; }
+.anote .ahood { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.anote .hn { font-family: var(--serif); font-size: 14.5px; }
+.anote .ins {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--clay-deep);
+  margin-top: 5px;
+}
+.anote .at { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin: 6px 0 0; }
+
+/* card area note — about the PLACE; a separate channel from the why-you chips */
+.areanote {
+  margin-top: 11px;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  border-left: 2px solid #cdc2ae;
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.dcard.alt .areanote { margin-top: 9px; padding: 7px 9px; }
+.areanote .an-ic {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--sand-deep);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.areanote .an-ic svg { width: 13px; height: 13px; stroke: var(--ink-soft); fill: none; stroke-width: 1.8; }
+.areanote .an-body { min-width: 0; }
+.areanote .an-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.areanote .an-hood { font-size: 12px; font-weight: 600; }
+.areanote .an-text { font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; margin-top: 3px; }
+
+/* researched framing line above the curated set — the narration seam */
+.researched-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: -6px 0 14px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.researched-line .rl-ic {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--sand-deep);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.researched-line .rl-ic svg { width: 13px; height: 13px; stroke: var(--ink-soft); fill: none; stroke-width: 1.8; }
+.researched-line b { color: var(--ink); font-weight: 600; }
+
+.detail-main h3 .stamp { margin-left: 8px; vertical-align: 2px; }

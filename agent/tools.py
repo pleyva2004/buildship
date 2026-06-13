@@ -96,8 +96,11 @@ def recommend_listings(ctx: RunContextWrapper[TurnState], listing_ids: list[str]
         return ("Cards are HELD until your research lands — you'll present them in "
                 "your next reply. Stop calling tools and answer in prose now: tell "
                 "the client what you're looking into.")
+    if (ctx.context.action or {}).get("type") == "recommend":
+        return "Cards are already displayed. STOP calling tools — write your final reply now."
+    listing_ids = listing_ids[:3]
     ctx.context.action = {"type": "recommend", "listing_ids": listing_ids}
-    return f"Cards displayed for: {', '.join(listing_ids)}. Now give your reasoning in prose."
+    return f"Cards displayed for: {', '.join(listing_ids)}. Now write your final reply in prose."
 
 
 @function_tool
@@ -159,6 +162,9 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
 
     state = ctx.context
     _log("research_area", f"{area} (focus: {focus or 'general'})")
+    if sum(1 for t in state.trace if t.startswith("researched")) >= 2:
+        return ("STOP researching — you have plenty. Write your final reply now "
+                "using what you already learned.")
     area = area.strip().title()[:28]
     _trace(state, "research_area", area)  # a place name, not a sentence — keep tags clean
     personalized = bool(focus) and focus != researcher.GENERAL

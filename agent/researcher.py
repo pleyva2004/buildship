@@ -35,7 +35,7 @@ def _canned() -> dict:
 
 def _mock(area: str) -> str:
     notes = _canned()
-    key = next((k for k in notes if k.lower() in area.lower() or area.lower() in k.lower()), None)
+    key = next((k for k in notes if k.lower() in area.lower()), None)
     return notes[key] if key else notes["default"]
 
 
