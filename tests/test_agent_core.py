@@ -21,7 +21,7 @@ def test_generate_backstop_fires_on_keywords():
 
 def test_turn_shape_has_new_facts():
     turn = AgentSession("jake_v1").turn("hello")
-    assert set(turn) == {"reply", "action", "recalled", "new_facts", "researching"}
+    assert set(turn) == {"reply", "action", "recalled", "new_facts", "researching", "trace"}
     assert turn["new_facts"] == []  # mock path never extracts
 
 

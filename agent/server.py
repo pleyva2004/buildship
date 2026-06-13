@@ -38,6 +38,7 @@ class ChatTurn(BaseModel):
     recalled: list[Memory]
     new_facts: list[dict] = []  # learned mid-conversation → "✓ Saved to memory" chips
     researching: list[str] = []  # background area research underway
+    trace: list[str] = []  # tool activity this turn ("behind the scenes")
 
 
 @app.post("/api/chat", response_model=ChatTurn)

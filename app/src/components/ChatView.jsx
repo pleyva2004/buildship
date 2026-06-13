@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import CuratedSet from './CuratedSet.jsx'
 import { REFINES } from '../mock/discovery.js'
 import { LISTINGS } from '../mock/data.js'
@@ -78,6 +78,9 @@ export default function ChatView({
               }} /></div>
             ) : (
               m.text && <div className={`bubble ${m.role}`}>{m.text}</div>
+            )}
+            {m.trace?.length > 0 && (
+              <div className="turn-trace">✦ {m.trace.join(' · ')}</div>
             )}
             {m.newFacts?.length > 0 && (
               <div className="saved-facts">

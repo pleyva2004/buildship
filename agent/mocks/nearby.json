@@ -1,0 +1,56 @@
+{
+  "_comment": "Canned nearby places (Composio Maps mock + stage fallback). kind strings are matched against client interests for personalized ordering.",
+  "Travis Heights": [
+    {"name": "Jo's Coffee (South Congress)", "kind": "coffee", "walk": "10 min walk"},
+    {"name": "Norwood Estate Dog Park", "kind": "dog park", "walk": "12 min walk"},
+    {"name": "Blunn Creek Greenbelt", "kind": "park trail", "walk": "5 min walk"},
+    {"name": "South Congress shops", "kind": "shopping", "walk": "9 min walk"},
+    {"name": "Big Top Candy Shop", "kind": "family", "walk": "10 min walk"}
+  ],
+  "Zilker": [
+    {"name": "Zilker Metropolitan Park", "kind": "park", "walk": "8 min walk"},
+    {"name": "Barton Springs Pool", "kind": "swimming", "walk": "12 min walk"},
+    {"name": "Zilker off-leash area", "kind": "dog park", "walk": "9 min walk"},
+    {"name": "Picnik Austin", "kind": "coffee", "walk": "7 min walk"},
+    {"name": "Umlauf Sculpture Garden", "kind": "culture", "walk": "11 min walk"}
+  ],
+  "Mueller": [
+    {"name": "Mueller Lake Park", "kind": "park", "walk": "6 min walk"},
+    {"name": "Halcyon Mueller", "kind": "coffee", "walk": "8 min walk"},
+    {"name": "Mueller Farmers Market", "kind": "market", "walk": "7 min walk"},
+    {"name": "Thinkery children's museum", "kind": "family", "walk": "9 min walk"},
+    {"name": "John Gaines Dog Park", "kind": "dog park", "walk": "10 min walk"}
+  ],
+  "Hyde Park": [
+    {"name": "Quack's 43rd Street Bakery", "kind": "coffee", "walk": "4 min walk"},
+    {"name": "Shipe Park & pool", "kind": "park", "walk": "5 min walk"},
+    {"name": "Hyde Park Gym", "kind": "fitness", "walk": "6 min walk"},
+    {"name": "Antonelli's Cheese Shop", "kind": "food", "walk": "5 min walk"},
+    {"name": "Hancock Golf Course green", "kind": "dog park", "walk": "9 min walk"}
+  ],
+  "East Austin": [
+    {"name": "Cenote (East Cesar Chavez)", "kind": "coffee", "walk": "5 min walk"},
+    {"name": "Lady Bird Lake trail (east)", "kind": "park trail", "walk": "10 min walk"},
+    {"name": "East 6th restaurants", "kind": "restaurants nightlife", "walk": "6 min walk"},
+    {"name": "Boggy Creek Greenbelt", "kind": "dog park", "walk": "11 min walk"},
+    {"name": "Whisler's", "kind": "nightlife", "walk": "7 min walk"}
+  ],
+  "Circle C": [
+    {"name": "Slaughter Creek Trail", "kind": "park trail", "walk": "8 min walk"},
+    {"name": "Lady Bird Johnson Wildflower Center", "kind": "culture park", "walk": "6 min drive"},
+    {"name": "Circle C Metropolitan Park", "kind": "park dog park", "walk": "10 min walk"},
+    {"name": "Summer Moon Coffee", "kind": "coffee", "walk": "7 min drive"},
+    {"name": "Veloway cycling loop", "kind": "fitness", "walk": "9 min walk"}
+  ],
+  "Clarksville": [
+    {"name": "Fresh Plus Grocery", "kind": "grocery", "walk": "3 min walk"},
+    {"name": "Café Medici", "kind": "coffee", "walk": "5 min walk"},
+    {"name": "West Austin Neighborhood Park", "kind": "park dog park", "walk": "6 min walk"},
+    {"name": "Jeffrey's", "kind": "restaurants", "walk": "4 min walk"},
+    {"name": "Lady Bird Lake trail (west)", "kind": "park trail", "walk": "12 min walk"}
+  ],
+  "default": [
+    {"name": "neighborhood park", "kind": "park", "walk": "10 min walk"},
+    {"name": "local coffee shop", "kind": "coffee", "walk": "8 min walk"}
+  ]
+}

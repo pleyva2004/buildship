@@ -47,3 +47,19 @@ def test_researcher_mock_canned_and_default():
     from agent.researcher import research_area
     assert "South Congress" in research_area("Travis Heights")
     assert "dig deeper" in research_area("Unknownville")
+
+
+def test_nearby_mock_personalized_ordering():
+    from agent.clients.composio_client import nearby_places
+    places = nearby_places("Travis Heights", ["dog park"])
+    assert places[0]["kind"] == "dog park"  # interest-matched first
+    assert all("walk" in p for p in places)
+    assert nearby_places("Unknownville", [])[0]["kind"] == "park"  # default fallback
+
+
+def test_agent_modules_import_cleanly():
+    # the live path imports these lazily — catch import-time errors in CI,
+    # not on stage (regression: _trace annotation referenced TurnState early)
+    import importlib
+    for mod in ("agent.tools", "agent.harness", "agent.researcher"):
+        importlib.import_module(mod)

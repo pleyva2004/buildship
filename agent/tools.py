@@ -21,6 +21,24 @@ def _log(tool: str, detail: str) -> None:
     print(f"[vista:tool] {tool}: {detail}")
 
 
+TRACE_LABEL = {
+    "recall_memories": "recalled memories",
+    "search_web_listings": "searched the market",
+    "recommend_listings": "picked homes",
+    "generate_tour": "started your tour",
+    "save_memory": "saved to memory",
+    "revise_memory": "updated a memory",
+    "research_area": "researched",
+    "whats_nearby": "checked what's nearby",
+}
+
+
+def _trace(state, tool: str, suffix: str = "") -> None:
+    entry = TRACE_LABEL.get(tool, tool) + (f" {suffix}" if suffix else "")
+    if entry not in state.trace:
+        state.trace.append(entry)
+
+
 @dataclass
 class TurnState:
     profile_id: str
@@ -29,6 +47,7 @@ class TurnState:
     action: dict | None = None  # at most one UI action per turn; last write wins
     new_facts: list = field(default_factory=list)  # learned this turn → "✓ Saved" chips
     researching: list = field(default_factory=list)  # areas dispatched in background
+    trace: list = field(default_factory=list)  # human-readable tool activity (UI "behind the scenes")
     # research dispatched with NO prior intel: hold cards this turn — the UI's
     # follow-up turn presents them once the intel lands (two-phase turn)
     research_blind: bool = False
@@ -39,6 +58,7 @@ def recall_memories(ctx: RunContextWrapper[TurnState], query: str) -> str:
     """Search everything you remember about this client (taste, life situation,
     mood boards). Use when you need more context than you already have."""
     _log("recall_memories", query)
+    _trace(ctx.context, "recall_memories")
     state = ctx.context
     seen = {m["id"] for m in state.recalled}
     found = [
@@ -56,6 +76,7 @@ def search_web_listings(ctx: RunContextWrapper[TurnState], query: str) -> str:
     """Search the live market for home listings. Use for market color and to
     ground your discovery story; only ever recommend homes from your INVENTORY."""
     _log("search_web_listings", query)
+    _trace(ctx.context, "search_web_listings")
     results = tavily_client.search(query, max_results=3)
     if not results:
         return "No listings found."
@@ -69,6 +90,7 @@ def recommend_listings(ctx: RunContextWrapper[TurnState], listing_ids: list[str]
     match first. Re-call it whenever the client's ask changes what should rank
     first (e.g. "the cheapest" -> reorder by price). Use inventory ids."""
     _log("recommend_listings", ", ".join(listing_ids))
+    _trace(ctx.context, "recommend_listings")
     if ctx.context.research_blind:
         # two-phase turn: cards wait for the research; steer the model to wrap up
         return ("Cards are HELD until your research lands — you'll present them in "
@@ -83,6 +105,7 @@ def generate_tour(ctx: RunContextWrapper[TurnState], listing_id: str) -> str:
     """Generate the client's personalized restyled tour of a home. Call this when
     they ask to see a home in their style / their version."""
     _log("generate_tour", listing_id)
+    _trace(ctx.context, "generate_tour")
     ctx.context.action = {"type": "generate_tour", "listing_id": listing_id}
     return f"Tour generation started for {listing_id}. Tell the client it's rendering in their taste."
 
@@ -97,6 +120,7 @@ def save_memory(ctx: RunContextWrapper[TurnState], text: str,
     source: stated (they said it) | inferred (you read between the lines)."""
     _log("save_memory", text)
     state = ctx.context
+    _trace(state, "save_memory")
     state.memory.add(state.profile_id, text, category, source=source)
     state.new_facts.append({"text": text, "category": category, "provenance": source})
     return f"Saved to memory: {text}"
@@ -110,6 +134,7 @@ def revise_memory(ctx: RunContextWrapper[TurnState], old_fact: str, new_text: st
     replacement. Acknowledge the revision out loud in your reply, naturally."""
     _log("revise_memory", f"{old_fact!r} -> {new_text!r}")
     state = ctx.context
+    _trace(state, "revise_memory")
     matches = state.memory.search(state.profile_id, old_fact, k=1)
     if matches:
         state.memory.update(state.profile_id, matches[0]["id"], new_text)
@@ -134,7 +159,8 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
 
     state = ctx.context
     _log("research_area", f"{area} (focus: {focus or 'general'})")
-    area = area.strip().title()[:28]  # a place name, not a sentence — keep tags clean
+    area = area.strip().title()[:28]
+    _trace(state, "research_area", area)  # a place name, not a sentence — keep tags clean
     personalized = bool(focus) and focus != researcher.GENERAL
     fkind = f"focus:{focus.strip().lower()[:48]}" if personalized else "general"
 
@@ -165,5 +191,31 @@ def research_area(ctx: RunContextWrapper[TurnState], area: str, focus: str = "")
             f"once the research lands.")
 
 
+@function_tool
+def whats_nearby(ctx: RunContextWrapper[TurnState], area: str, interests: list[str] = None) -> str:
+    """Named places with walk times near a neighborhood (via Composio Maps) —
+    coffee, dog parks, groceries, nightlife. Call when grounding a listing or
+    answering "what's around there?". interests: what THIS client cares about
+    (from memory: dog -> dog park, hosts -> restaurants)."""
+    from agent.clients import composio_client
+
+    state = ctx.context
+    area = area.strip().title()[:28]
+    _log("whats_nearby", f"{area} (interests: {interests or '—'})")
+    _trace(state, "whats_nearby", area)
+    places = composio_client.nearby_places(area, interests or [])
+    if not places:
+        return f"No nearby data for {area}."
+    lines = [f"{p['name']} ({p['kind']}{', ' + p['walk'] if p['walk'] else ''})" for p in places]
+    top = "; ".join(lines[:3])
+    fact = {"category": "area_research", "provenance": "researched", "text": f"{area} nearby — {top}"}
+    if not any(f["text"] == fact["text"] for f in state.new_facts):
+        existing = [m["text"] for m in state.memory.all(state.profile_id)]
+        if fact["text"] not in existing:
+            state.memory.add(state.profile_id, fact["text"], "area_research", source="researched")
+        state.new_facts.append(fact)
+    return "\n".join(f"- {l}" for l in lines)
+
+
 ALL_TOOLS = [recall_memories, search_web_listings, recommend_listings, generate_tour,
-             save_memory, revise_memory, research_area]
+             save_memory, revise_memory, research_area, whats_nearby]

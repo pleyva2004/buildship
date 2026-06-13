@@ -100,7 +100,7 @@ class AgentSession:
         reply, action = parse_action(nebius.chat_mock(self.history))
         action = action or self._backstop(user_msg)
         self.history.append({"role": "assistant", "content": reply})
-        return {"reply": reply, "action": action, "recalled": recalled, "new_facts": [], "researching": []}
+        return {"reply": reply, "action": action, "recalled": recalled, "new_facts": [], "researching": [], "trace": []}
 
     # -- live: Agents SDK tool loop on Nebius (design 07) -------------------
 
@@ -154,6 +154,7 @@ class AgentSession:
             "recalled": state.recalled,
             "new_facts": state.new_facts,  # save_memory/revise_memory writes this turn
             "researching": state.researching,  # background research underway (UI narrates + refreshes)
+            "trace": state.trace,  # truthful "behind the scenes" line in the UI
         }
 
     def _area_intel(self, user_msg: str) -> tuple[str | None, list[str]]:

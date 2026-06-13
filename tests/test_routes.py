@@ -27,7 +27,7 @@ def test_listings_passthrough():
 
 def test_chat_shape():
     data = client.post("/api/chat", json={"profile_id": "jake_v1", "message": "what did you find"}).json()
-    assert set(data) == {"reply", "action", "recalled", "new_facts", "researching"}
+    assert set(data) == {"reply", "action", "recalled", "new_facts", "researching", "trace"}
     assert data["action"]["type"] == "recommend"
 
 
