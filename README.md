@@ -95,7 +95,7 @@ agent/            # Python: core.py (brain), server.py (FastAPI), loop.py (REPL)
 app/              # React/Vite: one page, view states (welcome → [interview] → chat →
                   #   [taste passport] → [listing detail] → tour) — design 08 spine
 assets/listings/  # index.json + hero/{raw,restyled,video} per the filename convention
-pipeline/         # Engineer A: restyle + video + ffmpeg stitch (not yet built)
+pipeline/         # Engineer A: diffusion restyle + video + ffmpeg stitch (see pipeline/README.md)
 specs/            # the frozen A↔B style-spec contract
 design/           # design docs 00–09 (read 00-overview first)
 tests/            # smoke tests (`make test`) — all mock, zero network
@@ -115,6 +115,8 @@ placeholders when files are missing. Specs in `/specs` are frozen — see `specs
 | Nebius LLM via Agents SDK harness (Llama 3.3 70B) | ✅ | ✅ tested — tools fire end-to-end |
 | mem0 (both profiles seeded) | ✅ | ✅ tested |
 | Tavily (listing discovery + `search_web_listings` tool) | ✅ | ✅ search tested; extract blocked by portals → manual photos (sanctioned) |
+| Hero photos — **austin_01 locked** (1724 Canon Yeomans Trl; 16 raw rooms in `assets/listings/austin_01/raw/`) | n/a | ✅ merged from `pablo/diffusion-pipeline`; app's hero card/tour reads these pixels |
+| Nebius Object Storage asset pipe (`make assets-pull` / `assets-push`) | n/a | ✅ authenticated, dry-runs green; `index.json` clobber-protected |
 | Composio (vibe/mood-board import) | — | key in .env, client pending — next up, plugs into the harness as tools |
 | Design 08b interview experience (phases, voice\|text modes, orb, taste panel, passport) | ✅ Playwright-verified end-to-end | ✅ same UI; live engine answers |
 | Voice v1 — hold-to-speak → `/api/voice/transcribe` (local faster-whisper, offline) | n/a — needs the server | ✅ tested (synthesized speech word-perfect; warm transcribe ~0.4s; human-verified) |

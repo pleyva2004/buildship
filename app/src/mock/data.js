@@ -89,7 +89,7 @@ export const LISTINGS = [
     traits: ['bright', 'yard', 'walkable', 'office', 'hosting'],
     features: {light: .9, walkable: .85, yard: .8, value: .5, character: .5, open: .8, quiet: .5},
     hue: 28,
-    rooms: ['living', 'kitchen', 'primary_bed', 'office', 'dining', 'exterior'],
+    rooms: ['living', 'kitchen', 'bedroom', 'office', 'dining', 'exterior'],
     blurb:
       'A light-soaked corner lot two blocks off South Congress. Tall windows on the south and west faces, a real office with morning sun, and a fully fenced backyard under mature live oaks.',
     neighborhood_note:
@@ -266,7 +266,7 @@ export const LISTINGS = [
 export const ROOM_LABELS = {
   living: 'Living room',
   kitchen: 'Kitchen',
-  primary_bed: 'Primary bedroom',
+  bedroom: 'Primary bedroom',
   office: 'Office',
   dining: 'Dining',
   exterior: 'Exterior',
@@ -278,7 +278,7 @@ export const ROOM_CUES = {
   jake_v1: {
     living: ['bright and airy', 'pale oak', 'few intentional objects'],
     kitchen: ['“minimalist oak kitchens” board', 'matte black steel'],
-    primary_bed: ['linen', 'uncluttered calm'],
+    bedroom: ['linen', 'uncluttered calm'],
     office: ['must-have: real daylight', 'cool, even light'],
     dining: ['pale woods', 'no heavy ornamentation'],
     exterior: ['yard for Daisy', 'walk to South Congress'],
@@ -286,7 +286,7 @@ export const ROOM_CUES = {
   pablo_v1: {
     living: ['warm western light', 'walnut + boucle'],
     kitchen: ['brushed brass', 'collected, not staged'],
-    primary_bed: ['layered textiles', 'soft shadows'],
+    bedroom: ['layered textiles', 'soft shadows'],
     office: ['golden-hour light'],
     dining: ['must-have: a dining room worth gathering in', '“mid-century dining rooms” board'],
     exterior: ['character over polish'],

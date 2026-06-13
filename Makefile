@@ -8,10 +8,16 @@ MODEL_qwen     = Qwen/Qwen3.5-397B-A17B-fast
 MODEL_llama    = meta-llama/Llama-3.3-70B-Instruct
 MODEL_ENV      = $(if $(MODEL),NEBIUS_MODEL=$(or $(MODEL_$(MODEL)),$(MODEL)))
 
-.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live interview interview-live test
+.PHONY: agent agent-live app seed seed-live serve serve-live deps listings listings-live interview interview-live test assets-pull assets-push
 
 deps:             ## install backend deps (fastapi, uvicorn, openai-agents)
 	python3 -m pip install -r requirements.txt
+
+assets-pull:      ## mirror Nebius Object Storage bucket -> local /assets (DRY=1 to preview)
+	python3 scripts/pull_assets.py
+
+assets-push:      ## Engineer A: upload local /assets -> bucket (DRY=1 to preview)
+	python3 scripts/push_assets.py
 
 test:             ## smoke tests — all mock, zero keys, zero network
 	python3 -m pytest tests/ -q

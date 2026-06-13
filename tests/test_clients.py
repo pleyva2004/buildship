@@ -63,3 +63,17 @@ def test_agent_modules_import_cleanly():
     import importlib
     for mod in ("agent.tools", "agent.harness", "agent.researcher"):
         importlib.import_module(mod)
+
+
+def test_pull_assets_script_gates_on_missing_creds(monkeypatch, capsys):
+    import importlib.util, sys
+    from pathlib import Path
+    for var in ("NEBIUS_S3_BUCKET", "NEBIUS_S3_ACCESS_KEY", "NEBIUS_S3_SECRET_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    spec = importlib.util.spec_from_file_location(
+        "pull_assets", Path(__file__).parent.parent / "scripts/pull_assets.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.setattr(mod, "BUCKET", "")
+    assert mod.main() == 1  # refuses politely, never crashes
+    assert "Missing" in capsys.readouterr().out

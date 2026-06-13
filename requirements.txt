@@ -9,3 +9,5 @@ python-multipart>=0.0.9
 # Smoke tests (`make test`) — all mock, zero network.
 pytest>=8.0
 httpx>=0.27
+# Asset pull from Nebius Object Storage (S3-compatible).
+boto3>=1.34

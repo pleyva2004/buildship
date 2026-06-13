@@ -1,12 +1,16 @@
 // The ONLY A↔B runtime coupling: asset paths by filename convention (design 05 §4).
 // Every consumer must degrade gracefully when a file is missing.
 
-export const rawPhoto = (room) => `/assets/listings/hero/raw/hero__${room}.jpg`
+// Hero pixels live under austin_01 (Pablo's locked listing — png screenshots);
+// the card metadata stays demo-tuned. Swap HERO_ASSETS if the listing changes.
+export const HERO_ASSETS = 'austin_01'
+
+export const rawPhoto = (room) => `/assets/listings/${HERO_ASSETS}/raw/${HERO_ASSETS}__${room}.png`
 
 export const restyledPhoto = (room, profileId) =>
-  `/assets/listings/hero/restyled/${profileId}/hero__${room}__${profileId}.png`
+  `/assets/listings/${HERO_ASSETS}/restyled/${profileId}/${HERO_ASSETS}__${room}__${profileId}.png`
 
-export const tourVideo = (profileId) => `/assets/listings/hero/video/${profileId}/tour.mp4`
+export const tourVideo = (profileId) => `/assets/listings/${HERO_ASSETS}/video/${profileId}/tour.mp4`
 
 // Branded inline placeholder for any missing render (no broken-image icons, ever).
 // `align` offsets the label so two stacked placeholders (the compare slider's
