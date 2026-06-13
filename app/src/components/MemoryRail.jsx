@@ -94,7 +94,7 @@ export default function MemoryRail({ profileId, spec: specOverride, weights, sav
         <div className="areapanel">
           <h2>What VISTA researched</h2>
           <p className="dsub">
-            Neighborhood intel VISTA gathered out in the world — about the <b>places</b>, never folded into what it knows about you.
+            Neighborhood intel VISTA gathered out in the world.
           </p>
           {areaNotes.map((n) => (
             <div className={'anote' + (n.inPlay ? ' inset' : '') + (n.fresh ? ' fresh' : '')} key={n.hood}>
